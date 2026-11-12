@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Cross2Icon, GearIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
+import { Cross2Icon, GearIcon } from '@radix-ui/react-icons';
+import SearchBar,{type SearchMode} from './SearchBar';
+import {searchWithDefaultEngine} from './engine-search';
 import BookmarkGrid from './BookmarkGrid';
 import LayoutSettings from './LayoutSettings';
 import { DEFAULT_LAYOUT, loadLayout, type Layout } from './layout';
@@ -40,6 +42,10 @@ export default function App() {
  const [query,setQuery]=useState('');const [loading,setLoading]=useState(true);const [error,setError]=useState('');
  const [editing,setEditing]=useState<Bookmark|null>(null);const [settings,setSettings]=useState(false);
  const [layout,setLayout]=useState<Layout>({...DEFAULT_LAYOUT});
+ const [mode,setMode]=useState<SearchMode>('engine');
+ const [searchError,setSearchError]=useState('');
+ const [searchBusy,setSearchBusy]=useState(false);
+ const searching=useRef(false);
  const [usage,setUsage]=useState<UsageMap>({});
  const [snapshot,setSnapshot]=useState<UsageMap>({});
  const initialUsage=useRef<UsageMap|null>(null);
@@ -64,7 +70,14 @@ export default function App() {
   void refresh();
   return ()=>{active=false;revision++;unsubscribe();};
  },[]);
- const visible=rankBookmarks(searchBookmarks(bookmarks,query),snapshot,usage);
+ const visible=rankBookmarks(searchBookmarks(bookmarks,mode==='bookmarks'?query:''),snapshot,usage);
+ async function submitSearch(){
+  if(mode!=='engine'||!query.trim()||searching.current)return;
+  searching.current=true;setSearchBusy(true);setSearchError('');
+  try {await searchWithDefaultEngine(query);}
+  catch(error){setSearchError(error instanceof Error?error.message:'搜索失败，请重试。');}
+  finally{searching.current=false;setSearchBusy(false);}
+ }
  function opened(id:string){void recordOpen(id).catch(error=>setNotice(`使用记录保存失败：${error instanceof Error?error.message:'请重试'}`));}
  async function pin(id:string,pinned:boolean){
   try {await setPinned(id,pinned);setUsage(previous=>({...previous,[id]:{count:previous[id]?.count??0,lastOpened:previous[id]?.lastOpened??0,pinned}}));}
@@ -73,8 +86,8 @@ export default function App() {
  return <main>
   <header><h1>Bookmark Grid</h1><button className="settings-button" onClick={()=>setSettings(value=>!value)} aria-label="设置" aria-expanded={settings} aria-controls="layout-settings">设置 <GearIcon/></button></header>
   <section className="workspace" aria-label="书签">
-   <div className="search-wrap"><MagnifyingGlassIcon aria-hidden="true" className="search-icon"/><label className="sr-only" htmlFor="search">搜索书签</label><input id="search" type="search" placeholder="搜索名称、网址或文件夹…" value={query} onChange={event=>setQuery(event.target.value)} autoComplete="off"/>{query&&<button onClick={()=>setQuery('')} className="icon-button" aria-label="清空搜索"><Cross2Icon/></button>}</div>
-   <div className="info" aria-live="polite"><span>{loading?'正在读取书签…':query.trim()?`${visible.length} / ${bookmarks.length} 个书签`:`${bookmarks.length} 个书签`}</span><span>置顶优先 · 按使用频率排序</span></div>
+   <SearchBar mode={mode} query={query} onModeChange={value=>{setMode(value);setSearchError('');}} onQueryChange={value=>{setQuery(value);setSearchError('');}} onSubmit={()=>void submitSearch()} busy={searchBusy} error={searchError}/>
+   <div className="info" aria-live="polite"><span>{loading?'正在读取书签…':mode==='bookmarks'&&query.trim()?`${visible.length} / ${bookmarks.length} 个书签`:`${bookmarks.length} 个书签`}</span><span>置顶优先 · 按使用频率排序</span></div>
    {error&&<div role="alert" className="error-banner"><span>{error}</span><button onClick={()=>refreshRef.current()}>重试</button></div>}
    {notice&&<div role="alert" className="error-banner"><span>{notice}</span><button onClick={()=>refreshRef.current()}>重试</button></div>}
    {!loading&&!error&&bookmarks.length===0&&<div className="empty"><h3>还没有书签</h3><p>在 Chrome 中收藏一个网页，它就会出现在这里。</p><p>按 Ctrl / ⌘ + D 收藏当前网页。</p></div>}

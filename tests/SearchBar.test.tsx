@@ -1,0 +1,11 @@
+// @vitest-environment jsdom
+import React,{useState} from 'react';
+import {it,expect,vi,afterEach} from 'vitest';
+import {render,screen,fireEvent,cleanup} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import SearchBar,{type SearchMode} from '../src/SearchBar';
+afterEach(cleanup);
+function setup(){const submitted=vi.fn();function Host(){const [mode,setMode]=useState<SearchMode>('engine');const [query,setQuery]=useState('');return <SearchBar mode={mode} query={query} onModeChange={setMode} onQueryChange={setQuery} onSubmit={submitted} busy={false} error=""/>;}render(<Host/>);return submitted;}
+it('does not submit while typing and preserves text across modes',async()=>{const submit=setup();const user=userEvent.setup();await user.type(screen.getByRole('searchbox'),'中文');expect(submit).not.toHaveBeenCalled();await user.selectOptions(screen.getByRole('combobox',{name:'搜索模式'}),'bookmarks');expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('中文');await user.type(screen.getByRole('searchbox'),'{Enter}');expect(submit).not.toHaveBeenCalled();await user.selectOptions(screen.getByRole('combobox',{name:'搜索模式'}),'engine');await user.type(screen.getByRole('searchbox'),'{Enter}');expect(submit).toHaveBeenCalledTimes(1);});
+it('guards composition, legacy 229 and blank submissions',()=>{const submit=setup();const input=screen.getByRole('searchbox');const form=screen.getByRole('search');fireEvent.submit(form);expect(submit).not.toHaveBeenCalled();fireEvent.change(input,{target:{value:'中文'}});fireEvent.compositionStart(input);fireEvent.submit(form);expect(submit).not.toHaveBeenCalled();fireEvent.compositionEnd(input);expect(fireEvent.keyDown(input,{key:'Enter',keyCode:229})).toBe(false);expect(submit).not.toHaveBeenCalled();});
+it('clear does not submit the form',async()=>{const submit=setup();const user=userEvent.setup();await user.type(screen.getByRole('searchbox'),'hello');await user.click(screen.getByRole('button',{name:'清空搜索'}));expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');expect(submit).not.toHaveBeenCalled();});

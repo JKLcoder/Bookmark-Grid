@@ -89,3 +89,11 @@ dialog input { width: 100%; border: 1px solid #74867a; border-radius: 5px; backg
 .pin-button svg { width: 16px; height: 16px; }
 .bookmark-item:hover .pin-button, .bookmark-item:focus-within .pin-button, .is-pinned .pin-button { opacity: 1; }
 @media (hover: none) { .pin-button { opacity: 1; } }
+
+.search-mode { flex: 0 0 74px; width: 74px; min-width: 0; border: 0; border-right: 1px solid #5a7162; background: transparent; color: inherit; border-radius: 0; padding: 2px 8px 2px 0; font-size: 14px; cursor: pointer; }
+.search-mode option { color: #e7eae6; background: #252b2d; }
+@media (max-width: 650px) {
+ .search-mode { flex-basis: 62px; width: 62px; font-size: 13px; padding-right: 4px; }
+ .search-wrap .search-icon { display: none; }
+ .info > span:last-child { font-size: 10px; }
+}

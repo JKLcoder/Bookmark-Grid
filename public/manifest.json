@@ -6,7 +6,8 @@
   "permissions": [
     "bookmarks",
     "storage",
-    "favicon"
+    "favicon",
+    "search"
   ],
   "chrome_url_overrides": {
     "newtab": "index.html"
