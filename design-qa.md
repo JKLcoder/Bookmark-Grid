@@ -83,3 +83,12 @@ Final review regression fix: freeze an empty frequency snapshot after the first 
 - Production-page browser checks verify persisted preferences, actual new-tab creation with the original page retained and opener isolated, actual current-tab link navigation, and exact Google/Baidu destination URLs. All external destination responses are intercepted and fulfilled locally; this does not claim external service availability or real extension runtime verification.
 - 85 unit/integration tests pass, including defaults/malformed values, shared reset, native targets and provider URL encoding. Initial search submission waits for startup preferences to avoid using the wrong default during loading. TypeScript/Vite build and Chromium smoke pass. No unexpected requests or runtime errors.
 - Visual result: passed; no actionable P0/P1/P2 issues. Existing managed-Chromium real-extension limitation still applies.
+
+## 1.5 approved prototype implementation
+
+- Applied the approved standalone prototype at `/workspace/Bookmark-Grid-prototype/index.html` to the production extension. Captures in `docs/design/optimized-*.png` cover desktop, settings, persistent failure, large type and touch.
+- Desktop first grid begins below the compact search/info bars (under 160px). Font-aware minimum columns prevent the former one-character clipping at 28px; 12 desired columns become 4 at desktop width, and coarse 390px becomes one. Hover actions have 32px targets and no permanent desktop title padding.
+- Settings are modeless and close on outside focus, Escape or Tab boundary; trigger focus is restored for keyboard dismissal. Separate reset groups preserve unrelated preferences.
+- Page-owned serialized preference writes retain unsaved previews through storage refresh and panel closure. Fault-injection browser and hook tests cover retry, stale reads, newer changes, and compensating undo of in-flight writes.
+- Search has a visible submit button, persistent provider and `/` focus shortcut. Existing native anchor opening, pinned/frequency ordering and provider navigation regressions pass. Provider responses are intercepted locally in browser tests; real extension loading remains unavailable under managed Chromium policy.
+- 95 unit/integration tests passed; TypeScript/Vite build and production-page Chromium checks passed. No new permissions/dependencies.
