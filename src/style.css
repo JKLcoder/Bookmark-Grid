@@ -795,3 +795,14 @@ body[data-save-phase="error"] #feedback {
 .original {
   overflow-wrap: anywhere;
 }
+
+.delete-entry {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 12px;
+}
+button.danger-text { color: #edb6a3; }
+button.danger { background: #edb6a3; border-color: #edb6a3; color: #271d19; }
+button.danger:hover { background: #f4c6b5; }
+.delete-bookmark-name { font-weight: 600; overflow-wrap: anywhere; }
+.delete-bookmark-url { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }

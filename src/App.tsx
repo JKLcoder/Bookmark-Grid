@@ -15,8 +15,8 @@ import { loadUsage, recordOpen, setPinned, type UsageMap } from "./usage";
 import { usePreferences } from "./usePreferences";
 import { SaveBadge, PreferenceFeedback } from "./PreferenceFeedback";
 import { rankBookmarks } from "./ranking";
-import { loadBookmarks, saveName, subscribe } from "./api";
-import { searchBookmarks, type Bookmark } from "./bookmarks";
+import { loadBookmarks, saveName, subscribe, removeBookmark } from "./api";
+import { displayName, searchBookmarks, type Bookmark } from "./bookmarks";
 
 function Modal({
   title,
@@ -57,15 +57,81 @@ function Modal({
     </dialog>
   );
 }
+function DeleteConfirmation({
+  bookmark,
+  onClose,
+  onDeleted,
+}: {
+  bookmark: Bookmark;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const pending = useRef(false);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    cancelButton.current?.focus();
+  }, []);
+  async function remove() {
+    if (pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await removeBookmark(bookmark.id);
+      onDeleted();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "删除失败，请重试。");
+      pending.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal title="确认删除书签" onClose={onClose} busy={busy}>
+      <p>此操作会删除 Chrome 书签管理器中的原始书签，无法在本插件内撤销。</p>
+      <p className="delete-bookmark-name">{displayName(bookmark)}</p>
+      <p className="delete-bookmark-url">{bookmark.url}</p>
+      <p className="muted">仅删除此条书签，同网址的其他书签不受影响。</p>
+      {error && (
+        <p role="alert" className="error">
+          删除失败：{error}
+        </p>
+      )}
+      <div className="dialog-actions">
+        <button
+          ref={cancelButton}
+          type="button"
+          autoFocus
+          disabled={busy}
+          onClick={onClose}
+        >
+          取消删除
+        </button>
+        <button
+          type="button"
+          className="danger"
+          disabled={busy}
+          onClick={() => void remove()}
+        >
+          {busy ? "删除中…" : "确认删除"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
 function Rename({
   bookmark,
   onClose,
   onSaved,
+  onDeleted,
 }: {
   bookmark: Bookmark;
   onClose: () => void;
   onSaved: () => void;
+  onDeleted: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
   const [name, setName] = useState(bookmark.customName ?? bookmark.title);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -81,9 +147,22 @@ function Rename({
       setSaving(false);
     }
   }
+  if (confirming)
+    return (
+      <DeleteConfirmation
+        bookmark={bookmark}
+        onClose={() => setConfirming(false)}
+        onDeleted={() => {
+          onDeleted();
+          onClose();
+        }}
+      />
+    );
   return (
     <Modal title="编辑显示名称" onClose={onClose} busy={saving}>
-      <p className="muted">只修改此页的名称，Chrome 原始书签保持不变。</p>
+      <p className="muted">
+        保存名称只修改此页的显示名称，不更改 Chrome 原始标题。
+      </p>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -118,6 +197,16 @@ function Rename({
           </button>
         </div>
       </form>
+      <div className="delete-entry">
+        <button
+          type="button"
+          className="danger-text"
+          disabled={saving}
+          onClick={() => setConfirming(true)}
+        >
+          删除书签
+        </button>
+      </div>
     </Modal>
   );
 }
@@ -355,6 +444,12 @@ export default function App() {
           bookmark={editing}
           onClose={() => setEditing(null)}
           onSaved={() => refreshRef.current()}
+          onDeleted={() => {
+            setBookmarks((previous) =>
+              previous.filter((bookmark) => bookmark.id !== editing.id),
+            );
+            refreshRef.current();
+          }}
         />
       )}
       {settings && (

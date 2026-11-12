@@ -23,8 +23,9 @@ try{
   const data=JSON.parse(localStorage.getItem('test-names')||'{}');
   const titles=['阿里云','百度','北京大学','哔哩哔哩','博客园','菜鸟教程','豆瓣','飞书','高德地图','即刻','京东','掘金','开发者社区','美团','少数派','淘宝','腾讯文档','网易云音乐','微信公众平台','React 文档','小红书','语雀','知乎','中国大学慕课','CodePen','Dribbble','Figma','GitHub','Linear','MDN Web Docs','Notion','npm','Stack Overflow','TypeScript','Vercel','Vite'];
   const urls=titles.map((_,i)=>i===19||i===29?'https://react.dev/':`https://example-${i}.test`);
-  const bookmarks={getTree:async()=>[{id:'0',title:'',children:[{id:'folder',title:'前端开发',children:titles.map((title,i)=>({id:String(i),title,url:urls[i]}))}]}],onCreated:listeners(),onChanged:listeners(),onMoved:listeners(),onRemoved:listeners()};
-  bookmarks.get=async id=>{const i=Number(id);if(!Number.isInteger(i)||!titles[i])throw Error('missing');return [{id,title:titles[i],url:urls[i]}];};
+  const removed=new Set(JSON.parse(localStorage.getItem('test-removed')||'[]'));
+  const bookmarks={getTree:async()=>[{id:'0',title:'',children:[{id:'folder',title:'前端开发',children:titles.map((title,i)=>({id:String(i),title,url:urls[i]})).filter(node=>!removed.has(node.id))}]}],onCreated:listeners(),onChanged:listeners(),onMoved:listeners(),onRemoved:listeners()};
+  bookmarks.get=async id=>{const i=Number(id);if(!Number.isInteger(i)||!titles[i]||removed.has(id))throw Error('missing');return [{id,title:titles[i],url:urls[i]}];};
   const onChanged=listeners();
   globalThis.__failNextPreferenceSave=false;
   Object.defineProperty(globalThis,'chrome',{value:{bookmarks,storage:{local:{get:async()=>({...data}),set:async values=>{if(globalThis.__failNextPreferenceSave&&Object.keys(values).some(key=>key.startsWith('layout:'))){globalThis.__failNextPreferenceSave=false;await new Promise(resolve=>setTimeout(resolve,80));throw Error('Fixture save failure');}Object.assign(data,values);localStorage.setItem('test-names',JSON.stringify(data));onChanged.fire();},remove:async keys=>{for(const key of [keys].flat())delete data[key];localStorage.setItem('test-names',JSON.stringify(data));onChanged.fire();}},onChanged}},configurable:true});
@@ -33,6 +34,14 @@ try{
    storePromise??=import(location.origin+'/usage-store.js').then(module=>module.createUsageStore(chrome));
    storePromise.then(store=>message.type==='usage:load'?store.load():message.type==='usage:record'?store.record(message.id):store.setPinned(message.id,message.pinned)).then(data=>callback({ok:true,data}),error=>callback({ok:false,error:error.message}));
   }};
+  bookmarks.remove=async id=>{
+   if(globalThis.__failNextDelete){globalThis.__failNextDelete=false;throw Error('Fixture delete failure');}
+   await bookmarks.get(id);removed.add(id);localStorage.setItem('test-removed',JSON.stringify([...removed]));
+   bookmarks.onRemoved.fire();
+   // Match the production worker's onRemoved cleanup using its actual serialized store.
+   storePromise??=import(location.origin+'/usage-store.js').then(module=>module.createUsageStore(chrome));
+   void storePromise.then(store=>store.remove([id]));
+  };
   chrome.search={query:(options,callback)=>{globalThis.__engineQueries??=[];globalThis.__engineQueries.push(options);callback();}};
  };
  await context.addInitScript(fixture);
@@ -204,8 +213,34 @@ try{
  await page.getByRole('combobox',{name:'书签打开方式'}).selectOption('current');
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-names')||'{}')['layout:openInNewTab']===false);
  await page.getByRole('button',{name:'关闭设置'}).click();
+ // Delete one of the duplicate-URL bookmarks, with Cancel, Escape and retry coverage.
+ await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
+ await page.getByRole('button',{name:'置顶 我的前端文档',exact:true}).click();
+ await page.getByRole('link',{name:'我的前端文档',exact:true}).dispatchEvent('auxclick',{button:1});
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-names')||'{}')['usage:19']?.count===1);
+ await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
+ await page.getByRole('button',{name:'编辑 我的前端文档',exact:true}).click();
+ await page.getByRole('button',{name:'删除书签',exact:true}).click();
+ await page.getByRole('dialog',{name:'确认删除书签'}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'取消删除'}).evaluate(e=>e===document.activeElement),true);
+ await page.keyboard.press('Escape');await page.getByRole('dialog',{name:'编辑显示名称'}).waitFor();
+ assert.equal(await page.getByRole('link',{name:'我的前端文档',exact:true}).count(),1);
+ await page.getByRole('button',{name:'删除书签',exact:true}).click();
+ await page.getByRole('button',{name:'取消删除'}).click();
+ await page.getByRole('button',{name:'删除书签',exact:true}).click();
+ await page.screenshot({path:'/tmp/bookmark-grid-delete-confirmation.png',fullPage:true});
+ await page.evaluate(()=>globalThis.__failNextDelete=true);
+ await page.getByRole('button',{name:'确认删除',exact:true}).click();
+ await page.getByRole('alert').filter({hasText:'Fixture delete failure'}).waitFor();
+ await page.getByRole('button',{name:'确认删除',exact:true}).click();
+ await page.getByRole('dialog').waitFor({state:'detached'});
+ await page.getByText('35 个书签',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('link',{name:'我的前端文档',exact:true}).count(),0);
+ assert.equal(await page.getByRole('link',{name:'MDN Web Docs',exact:true}).count(),1);
+ await page.waitForFunction(()=>{const data=JSON.parse(localStorage.getItem('test-names')||'{}');return !data['name:19']&&!data['usage:19'];});
+ await page.reload();await page.getByText('35 个书签',{exact:true}).waitFor();
  const pageCount=context.pages().length;await page.getByRole('link',{name:'阿里云',exact:true}).click();
  await page.waitForURL('https://example-0.test/');assert.equal(context.pages().length,pageCount);
  assert.deepEqual(errors,[]);assert.deepEqual(external,[googleUrl,baiduUrl,'https://example-0.test/']);
- console.log('PASS: prototype UI verified: readable 28px columns, 32px targets, settings focus exit, persistent save errors/retry/undo and scoped resets; persisted provider/open preferences; intercepted real navigation to Google/Baidu; actual new/current-tab anchor behavior; original tab retained and opener isolated;  production page with mocked Chrome API: 36 bookmarks; default engine / bookmark modes, explicit engine payload, immediate pins, native auxclick counts, stable current ordering and updated order after reload; layout columns/gaps/shared icon-text sizes persist; 12px and 28px dimensions match; reset and responsive cap, duplicate-URL search, alias editing/reload, native modal Escape, desktop/mobile layouts, no unexpected external requests or runtime errors; provider navigation responses intercepted locally.');
+ console.log('PASS: confirmed deletion, Escape/Cancel, retry, duplicate-URL preservation and cleanup; prototype UI verified: readable 28px columns, 32px targets, settings focus exit, persistent save errors/retry/undo and scoped resets; persisted provider/open preferences; intercepted real navigation to Google/Baidu; actual new/current-tab anchor behavior; original tab retained and opener isolated;  production page with mocked Chrome API: 36 bookmarks; default engine / bookmark modes, explicit engine payload, immediate pins, native auxclick counts, stable current ordering and updated order after reload; layout columns/gaps/shared icon-text sizes persist; 12px and 28px dimensions match; reset and responsive cap, duplicate-URL search, alias editing/reload, native modal Escape, desktop/mobile layouts, no unexpected external requests or runtime errors; provider navigation responses intercepted locally.');
 }finally{await context?.close();await new Promise(r=>server.close(r));await rm(profile,{recursive:true,force:true});}

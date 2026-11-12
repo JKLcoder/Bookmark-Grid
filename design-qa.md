@@ -98,3 +98,11 @@ Final review regression fix: freeze an empty frequency snapshot after the first 
 - Real favicon images lacked the SVG size constraint and overflowed their fixed wrapper. A decoded 64px image regression failed with actual width 64 versus expected 12 before the fix.
 - Apply explicit 100% width/height, block display and contain fit to both image and SVG; retain the shared font/icon size. Increase icon/text gap to clamp(10px, 0.5em, 14px).
 - Production-browser regression verifies actual image bounds equal the selected size at 12px and 28px and at least 10px of clear space before text. 95 tests, build and browser regression pass.
+
+## 1.6 original bookmark deletion
+
+- User-approved entry lives below the edit-name form. A separate native modal confirmation displays name/URL and clearly explains Chrome original deletion and no in-plugin undo; Cancel receives focus after showModal. No new grid actions or permissions.
+- Inspected `docs/design/delete-confirmation.png` at 1487 × 1058. Confirmation matches the existing compact palette and modal styling, with a subdued destructive action and clear cancellation.
+- API resolves the exact ID through bookmarks.get and rejects folders before bookmarks.remove. Existing background onRemoved listener serializes alias/usage/pin cleanup. UI removes the successful ID immediately before refresh so local cleanup/read errors cannot resurrect the link.
+- Added seven unit/integration regressions: API target/folder/error behavior; UI cancellation, duplicate preservation and cleanup, pending/retry, and successful deletion despite later cleanup failure. All 102 tests pass. Browser flow covers native Escape/Cancel, initial focus, failure/retry, duplicate URL preservation, cleanup and reload.
+- Production browser uses simulated Chrome bookmarks and actual serialized usage store. Updated real unpacked smoke to assert the selected ID disappears from Chrome while its duplicate remains; managed Chromium still cannot load this extension, so this native runtime check was not run here.

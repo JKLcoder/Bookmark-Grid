@@ -1,42 +1,568 @@
 // @vitest-environment jsdom
-import React from 'react';
-import {afterEach,beforeEach,it,expect,vi} from 'vitest';
-import {render,screen,waitFor,cleanup,fireEvent} from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import App from '../src/App';
-import {createUsageStore} from '../public/usage-store.js';
-let items:any[]; let data:Record<string,any>; let events: Array<Set<()=>void>>;
-beforeEach(()=>{
- items=[{id:'a',title:'开发文档',url:'https://react.dev'},{id:'b',title:'中文社区',url:'https://example.com'}]; data={};events=Array.from({length:5},()=>new Set());
- const event=(i:number)=>({addListener:(f:()=>void)=>events[i].add(f),removeListener:(f:()=>void)=>events[i].delete(f)});
- vi.stubGlobal('chrome',{bookmarks:{getTree:async()=>[{id:'0',title:'',children:items}],onCreated:event(0),onChanged:event(1),onMoved:event(2),onRemoved:event(3)},storage:{local:{get:async()=>({...data}),set:async(v:Record<string,any>)=>Object.assign(data,v),remove:async(keys:string|string[])=>{[keys].flat().forEach(k=>delete data[k])}},onChanged:event(4)}});
- const api=chrome as any;api.bookmarks.get=async(id:string)=>{const node=items.find(item=>item.id===id);if(!node)throw Error('missing');return [node];};const store=createUsageStore(api);api.runtime={sendMessage:(message:any,callback:any)=>{const task=message.type==='usage:load'?store.load():message.type==='usage:record'?store.record(message.id):store.setPinned(message.id,message.pinned);task.then((value:any)=>callback({ok:true,data:value}),(error:Error)=>callback({ok:false,error:error.message}));}};
- HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};
- HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');};
+import React from "react";
+import { afterEach, beforeEach, it, expect, vi } from "vitest";
+import {
+  render,
+  screen,
+  waitFor,
+  cleanup,
+  fireEvent,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import App from "../src/App";
+import { createUsageStore } from "../public/usage-store.js";
+let items: any[];
+let data: Record<string, any>;
+let events: Array<Set<() => void>>;
+beforeEach(() => {
+  items = [
+    { id: "a", title: "开发文档", url: "https://react.dev" },
+    { id: "b", title: "中文社区", url: "https://example.com" },
+  ];
+  data = {};
+  events = Array.from({ length: 5 }, () => new Set());
+  const event = (i: number) => ({
+    addListener: (f: () => void) => events[i].add(f),
+    removeListener: (f: () => void) => events[i].delete(f),
+  });
+  vi.stubGlobal("chrome", {
+    bookmarks: {
+      getTree: async () => [{ id: "0", title: "", children: items }],
+      onCreated: event(0),
+      onChanged: event(1),
+      onMoved: event(2),
+      onRemoved: event(3),
+    },
+    storage: {
+      local: {
+        get: async () => ({ ...data }),
+        set: async (v: Record<string, any>) => Object.assign(data, v),
+        remove: async (keys: string | string[]) => {
+          [keys].flat().forEach((k) => delete data[k]);
+        },
+      },
+      onChanged: event(4),
+    },
+  });
+  const api = chrome as any;
+  api.bookmarks.get = async (id: string) => {
+    const node = items.find((item) => item.id === id);
+    if (!node) throw Error("missing");
+    return [node];
+  };
+  const store = createUsageStore(api);
+  api.runtime = {
+    sendMessage: (message: any, callback: any) => {
+      const task =
+        message.type === "usage:load"
+          ? store.load()
+          : message.type === "usage:record"
+            ? store.record(message.id)
+            : store.setPinned(message.id, message.pinned);
+      task.then(
+        (value: any) => callback({ ok: true, data: value }),
+        (error: Error) => callback({ ok: false, error: error.message }),
+      );
+    },
+  };
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute("open");
+  };
 });
-afterEach(()=>{cleanup();vi.unstubAllGlobals();});
-it('renders native anchors and real count',async()=>{render(<App/>);const link=await screen.findByRole('link',{name:/开发文档/});expect(link.getAttribute('href')).toBe('https://react.dev');expect(link.hasAttribute('target')).toBe(false);expect(screen.getByText('2 个书签')).toBeTruthy();});
-it('searches and clears without pagination',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:/开发文档/});await user.selectOptions(screen.getByRole('combobox',{name:'搜索模式'}),'bookmarks');await user.type(screen.getByRole('searchbox'),'react.dev');expect(screen.queryByRole('link',{name:/中文社区/})).toBeNull();await user.click(screen.getByRole('button',{name:'清空搜索'}));expect(screen.getAllByRole('link')).toHaveLength(2);});
-it('edits alias without modifying original title and resets it',async()=>{const user=userEvent.setup();render(<App/>);await user.click(await screen.findByRole('button',{name:'编辑 开发文档'}));const input=screen.getByRole('textbox',{name:'显示名称'});await user.clear(input);await user.type(input,'我的文档');await user.click(screen.getByRole('button',{name:'保存名称'}));await screen.findByRole('link',{name:/我的文档/});expect(data['name:a']).toBe('我的文档');expect(items[0].title).toBe('开发文档');await user.click(screen.getByRole('button',{name:'编辑 我的文档'}));await user.click(screen.getByRole('button',{name:'恢复原标题'}));await screen.findByRole('link',{name:/开发文档/});expect(data['name:a']).toBeUndefined();});
-it('shows empty bookmarks state',async()=>{items=[];render(<App/>);expect(await screen.findByText('还没有书签')).toBeTruthy();});
-it('shows unmatched search state',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:/开发文档/});await user.selectOptions(screen.getByRole('combobox',{name:'搜索模式'}),'bookmarks');await user.type(screen.getByRole('searchbox'),'不存在');expect(screen.getByText('没有找到匹配的书签')).toBeTruthy();});
-it('updates after Chrome events and releases listeners',async()=>{const view=render(<App/>);await screen.findByRole('link',{name:/开发文档/});items=[{id:'c',title:'新增书签',url:'https://new.test'}];events[0].forEach(f=>f());await screen.findByRole('link',{name:/新增书签/});expect(screen.queryByRole('link',{name:/开发文档/})).toBeNull();view.unmount();expect(events.every(e=>e.size===0)).toBe(true);});
-it('shows storage errors without claiming success',async()=>{const user=userEvent.setup();chrome.storage.local.set=vi.fn().mockRejectedValue(new Error('空间不足'));render(<App/>);await user.click(await screen.findByRole('button',{name:'编辑 开发文档'}));await user.type(screen.getByRole('textbox',{name:'显示名称'}),'别名');await user.click(screen.getByRole('button',{name:'保存名称'}));await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('空间不足'));expect(screen.getByRole('dialog')).toBeTruthy();});
-it('explains missing extension context and allows retry',async()=>{vi.stubGlobal('chrome',undefined);render(<App/>);expect((await screen.findByRole('alert')).textContent).toContain('扩展');expect(screen.getByRole('button',{name:'重试'})).toBeTruthy();});
-it('shows names without visible domains while URL search still works',async()=>{const user=userEvent.setup();render(<App/>);const link=await screen.findByRole('link',{name:'开发文档'});expect(link.textContent).toBe('开发文档');expect(screen.queryByText('react.dev')).toBeNull();await user.selectOptions(screen.getByRole('combobox',{name:'搜索模式'}),'bookmarks');await user.type(screen.getByRole('searchbox'),'react.dev');expect(screen.getAllByRole('link')).toHaveLength(1);});
-it('changes columns and gaps, persists and restores defaults',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:/开发文档/});await user.click(screen.getByRole('button',{name:'设置'}));await user.selectOptions(screen.getByRole('combobox',{name:'期望列数'}),'8');await waitFor(()=>expect(data['layout:columns']).toBe(8));const row=screen.getByRole('slider',{name:'行间距'});fireEvent.change(row,{target:{value:'5'}});await waitFor(()=>expect(data['layout:rowGap']).toBe(5));await user.click(screen.getByRole('button',{name:'恢复布局默认'}));await waitFor(()=>expect(data['layout:columns']).toBe(6));expect(data['layout:rowGap']).toBe(4);});
-it('loads persisted layout values',async()=>{Object.assign(data,{'layout:columns':9,'layout:rowGap':8,'layout:columnGap':20});render(<App/>);await screen.findByRole('link',{name:/开发文档/});await userEvent.click(screen.getByRole('button',{name:'设置'}));expect((screen.getByRole('combobox',{name:'期望列数'}) as HTMLSelectElement).value).toBe('9');expect((screen.getByRole('slider',{name:'行间距'}) as HTMLInputElement).value).toBe('8');});
-it('keeps unsaved preview during bookmark refresh and displays persistence failures',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:/开发文档/});await user.click(screen.getByRole('button',{name:'设置'}));chrome.storage.local.set=vi.fn().mockRejectedValue(new Error('空间不足'));await user.selectOptions(screen.getByRole('combobox',{name:'期望列数'}),'10');events[1].forEach(f=>f());await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('空间不足'));expect((screen.getByRole('combobox',{name:'期望列数'}) as HTMLSelectElement).value).toBe('10');});
-it('sets shared text/icon size and includes it in reset',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:/开发文档/});await user.click(screen.getByRole('button',{name:'设置'}));fireEvent.change(screen.getByRole('slider',{name:'文字与图标大小'}),{target:{value:'24'}});await waitFor(()=>expect(data['layout:itemSize']).toBe(24));expect(document.querySelector('.bookmark-grid')?.getAttribute('style')).toContain('--item-size: 24px');await user.click(screen.getByRole('button',{name:'恢复布局默认'}));await waitFor(()=>expect(data['layout:itemSize']).toBe(16));});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+it("renders native anchors and real count", async () => {
+  render(<App />);
+  const link = await screen.findByRole("link", { name: /开发文档/ });
+  expect(link.getAttribute("href")).toBe("https://react.dev");
+  expect(link.hasAttribute("target")).toBe(false);
+  expect(screen.getByText("2 个书签")).toBeTruthy();
+});
+it("searches and clears without pagination", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: /开发文档/ });
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "搜索模式" }),
+    "bookmarks",
+  );
+  await user.type(screen.getByRole("searchbox"), "react.dev");
+  expect(screen.queryByRole("link", { name: /中文社区/ })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "清空搜索" }));
+  expect(screen.getAllByRole("link")).toHaveLength(2);
+});
+it("edits alias without modifying original title and resets it", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(
+    await screen.findByRole("button", { name: "编辑 开发文档" }),
+  );
+  const input = screen.getByRole("textbox", { name: "显示名称" });
+  await user.clear(input);
+  await user.type(input, "我的文档");
+  await user.click(screen.getByRole("button", { name: "保存名称" }));
+  await screen.findByRole("link", { name: /我的文档/ });
+  expect(data["name:a"]).toBe("我的文档");
+  expect(items[0].title).toBe("开发文档");
+  await user.click(screen.getByRole("button", { name: "编辑 我的文档" }));
+  await user.click(screen.getByRole("button", { name: "恢复原标题" }));
+  await screen.findByRole("link", { name: /开发文档/ });
+  expect(data["name:a"]).toBeUndefined();
+});
+it("shows empty bookmarks state", async () => {
+  items = [];
+  render(<App />);
+  expect(await screen.findByText("还没有书签")).toBeTruthy();
+});
+it("shows unmatched search state", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: /开发文档/ });
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "搜索模式" }),
+    "bookmarks",
+  );
+  await user.type(screen.getByRole("searchbox"), "不存在");
+  expect(screen.getByText("没有找到匹配的书签")).toBeTruthy();
+});
+it("updates after Chrome events and releases listeners", async () => {
+  const view = render(<App />);
+  await screen.findByRole("link", { name: /开发文档/ });
+  items = [{ id: "c", title: "新增书签", url: "https://new.test" }];
+  events[0].forEach((f) => f());
+  await screen.findByRole("link", { name: /新增书签/ });
+  expect(screen.queryByRole("link", { name: /开发文档/ })).toBeNull();
+  view.unmount();
+  expect(events.every((e) => e.size === 0)).toBe(true);
+});
+it("shows storage errors without claiming success", async () => {
+  const user = userEvent.setup();
+  chrome.storage.local.set = vi.fn().mockRejectedValue(new Error("空间不足"));
+  render(<App />);
+  await user.click(
+    await screen.findByRole("button", { name: "编辑 开发文档" }),
+  );
+  await user.type(screen.getByRole("textbox", { name: "显示名称" }), "别名");
+  await user.click(screen.getByRole("button", { name: "保存名称" }));
+  await waitFor(() =>
+    expect(screen.getByRole("alert").textContent).toContain("空间不足"),
+  );
+  expect(screen.getByRole("dialog")).toBeTruthy();
+});
+it("explains missing extension context and allows retry", async () => {
+  vi.stubGlobal("chrome", undefined);
+  render(<App />);
+  expect((await screen.findByRole("alert")).textContent).toContain("扩展");
+  expect(screen.getByRole("button", { name: "重试" })).toBeTruthy();
+});
+it("shows names without visible domains while URL search still works", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  const link = await screen.findByRole("link", { name: "开发文档" });
+  expect(link.textContent).toBe("开发文档");
+  expect(screen.queryByText("react.dev")).toBeNull();
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "搜索模式" }),
+    "bookmarks",
+  );
+  await user.type(screen.getByRole("searchbox"), "react.dev");
+  expect(screen.getAllByRole("link")).toHaveLength(1);
+});
+it("changes columns and gaps, persists and restores defaults", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: /开发文档/ });
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "期望列数" }),
+    "8",
+  );
+  await waitFor(() => expect(data["layout:columns"]).toBe(8));
+  const row = screen.getByRole("slider", { name: "行间距" });
+  fireEvent.change(row, { target: { value: "5" } });
+  await waitFor(() => expect(data["layout:rowGap"]).toBe(5));
+  await user.click(screen.getByRole("button", { name: "恢复布局默认" }));
+  await waitFor(() => expect(data["layout:columns"]).toBe(6));
+  expect(data["layout:rowGap"]).toBe(4);
+});
+it("loads persisted layout values", async () => {
+  Object.assign(data, {
+    "layout:columns": 9,
+    "layout:rowGap": 8,
+    "layout:columnGap": 20,
+  });
+  render(<App />);
+  await screen.findByRole("link", { name: /开发文档/ });
+  await userEvent.click(screen.getByRole("button", { name: "设置" }));
+  expect(
+    (screen.getByRole("combobox", { name: "期望列数" }) as HTMLSelectElement)
+      .value,
+  ).toBe("9");
+  expect(
+    (screen.getByRole("slider", { name: "行间距" }) as HTMLInputElement).value,
+  ).toBe("8");
+});
+it("keeps unsaved preview during bookmark refresh and displays persistence failures", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: /开发文档/ });
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  chrome.storage.local.set = vi.fn().mockRejectedValue(new Error("空间不足"));
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "期望列数" }),
+    "10",
+  );
+  events[1].forEach((f) => f());
+  await waitFor(() =>
+    expect(screen.getByRole("alert").textContent).toContain("空间不足"),
+  );
+  expect(
+    (screen.getByRole("combobox", { name: "期望列数" }) as HTMLSelectElement)
+      .value,
+  ).toBe("10");
+});
+it("sets shared text/icon size and includes it in reset", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: /开发文档/ });
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  fireEvent.change(screen.getByRole("slider", { name: "文字与图标大小" }), {
+    target: { value: "24" },
+  });
+  await waitFor(() => expect(data["layout:itemSize"]).toBe(24));
+  expect(
+    document.querySelector(".bookmark-grid")?.getAttribute("style"),
+  ).toContain("--item-size: 24px");
+  await user.click(screen.getByRole("button", { name: "恢复布局默认" }));
+  await waitFor(() => expect(data["layout:itemSize"]).toBe(16));
+});
 
-it('pins immediately and reports failures without a false pin',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:'开发文档'});await user.click(screen.getByRole('button',{name:'置顶 中文社区'}));await waitFor(()=>expect(screen.getByRole('button',{name:'取消置顶 中文社区'}).getAttribute('aria-pressed')).toBe('true'));expect(screen.getAllByRole('link')[0].textContent).toBe('中文社区');chrome.storage.local.set=vi.fn().mockRejectedValue(Error('quota'));await user.click(screen.getByRole('button',{name:'取消置顶 中文社区'}));await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('quota'));expect(screen.getByRole('button',{name:'取消置顶 中文社区'})).toBeTruthy();});
-it('keeps initial frequency order until a new page mount',async()=>{data['usage:a']={count:2,lastOpened:1,pinned:false};data['usage:b']={count:1,lastOpened:1,pinned:false};const view=render(<App/>);await waitFor(()=>expect(screen.getAllByRole('link')[0].textContent).toBe('开发文档'));data['usage:b']={count:5,lastOpened:10,pinned:false};events[4].forEach(f=>f());await new Promise(r=>setTimeout(r,20));expect(screen.getAllByRole('link')[0].textContent).toBe('开发文档');view.unmount();render(<App/>);await waitFor(()=>expect(screen.getAllByRole('link')[0].textContent).toBe('中文社区'));});
+it("pins immediately and reports failures without a false pin", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: "开发文档" });
+  await user.click(screen.getByRole("button", { name: "置顶 中文社区" }));
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole("button", { name: "取消置顶 中文社区" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true"),
+  );
+  expect(screen.getAllByRole("link")[0].textContent).toBe("中文社区");
+  chrome.storage.local.set = vi.fn().mockRejectedValue(Error("quota"));
+  await user.click(screen.getByRole("button", { name: "取消置顶 中文社区" }));
+  await waitFor(() =>
+    expect(screen.getByRole("alert").textContent).toContain("quota"),
+  );
+  expect(
+    screen.getByRole("button", { name: "取消置顶 中文社区" }),
+  ).toBeTruthy();
+});
+it("keeps initial frequency order until a new page mount", async () => {
+  data["usage:a"] = { count: 2, lastOpened: 1, pinned: false };
+  data["usage:b"] = { count: 1, lastOpened: 1, pinned: false };
+  const view = render(<App />);
+  await waitFor(() =>
+    expect(screen.getAllByRole("link")[0].textContent).toBe("开发文档"),
+  );
+  data["usage:b"] = { count: 5, lastOpened: 10, pinned: false };
+  events[4].forEach((f) => f());
+  await new Promise((r) => setTimeout(r, 20));
+  expect(screen.getAllByRole("link")[0].textContent).toBe("开发文档");
+  view.unmount();
+  render(<App />);
+  await waitFor(() =>
+    expect(screen.getAllByRole("link")[0].textContent).toBe("中文社区"),
+  );
+});
 
-it('defaults to engine mode without filtering and submits only on Enter',async()=>{const user=userEvent.setup();const query=vi.fn((_options:any,cb:()=>void)=>cb());(chrome as any).search={query};render(<App/>);await screen.findByRole('link',{name:'开发文档'});expect((screen.getByRole('combobox',{name:'搜索模式'}) as HTMLSelectElement).value).toBe('engine');await user.type(screen.getByRole('searchbox'),'react.dev');expect(screen.getAllByRole('link')).toHaveLength(2);expect(query).not.toHaveBeenCalled();await user.keyboard('{Enter}');await waitFor(()=>expect(query).toHaveBeenCalledTimes(1));expect(query.mock.calls[0][0]).toEqual({text:'react.dev',disposition:'CURRENT_TAB'});await user.selectOptions(screen.getByRole('combobox',{name:'搜索模式'}),'bookmarks');expect(screen.getAllByRole('link')).toHaveLength(1);await user.selectOptions(screen.getByRole('combobox',{name:'搜索模式'}),'engine');expect(screen.getAllByRole('link')).toHaveLength(2);});
-it('shows search errors and retries without choosing a provider',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:'开发文档'});await user.type(screen.getByRole('searchbox'),'query{Enter}');await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('搜索不可用'));const query=vi.fn((_options:any,cb:()=>void)=>cb());(chrome as any).search={query};await user.click(screen.getByRole('button',{name:'重试搜索'}));await waitFor(()=>expect(query).toHaveBeenCalledTimes(1));});
-it('freezes the fallback frequency snapshot when the first usage read fails',async()=>{const runtime=chrome.runtime as any;const send=runtime.sendMessage;let first=true;runtime.sendMessage=(message:any,callback:any)=>{if(message.type==='usage:load'&&first){first=false;callback({ok:false,error:'startup failure'});}else send(message,callback);};render(<App/>);await screen.findByRole('alert');const before=screen.getAllByRole('link').map(link=>link.textContent);fireEvent(screen.getByRole('link',{name:'中文社区'}),new MouseEvent('auxclick',{button:1,bubbles:true}));await waitFor(()=>expect(data['usage:b']?.count).toBe(1));events[4].forEach(f=>f());await waitFor(()=>expect(screen.queryByRole('alert')).toBeNull());expect(screen.getAllByRole('link').map(link=>link.textContent)).toEqual(before);});
-it('does not expose links before the initial frequency read settles',async()=>{const runtime=chrome.runtime as any;const send=runtime.sendMessage;let release:(()=>void)|undefined;runtime.sendMessage=(message:any,callback:any)=>{if(message.type==='usage:load')release=()=>send(message,callback);else send(message,callback);};render(<App/>);await waitFor(()=>expect(release).toBeDefined());expect(screen.queryAllByRole('link')).toHaveLength(0);release!();await screen.findByRole('link',{name:'开发文档'});});
-it('persists search engine and bookmark opening preferences and applies them',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:'开发文档'});await user.click(screen.getByRole('button',{name:'设置'}));await user.selectOptions(screen.getByRole('combobox',{name:'网页搜索引擎'}),'baidu');await user.selectOptions(screen.getByRole('combobox',{name:'书签打开方式'}),'new');await waitFor(()=>expect(data['layout:searchEngine']).toBe('baidu'));await waitFor(()=>expect(data['layout:openInNewTab']).toBe(true));expect(screen.getByRole('link',{name:'开发文档'}).getAttribute('target')).toBe('_blank');await user.click(screen.getByRole('button',{name:'关闭设置'}));expect(screen.getByText('百度')).toBeTruthy();await user.click(screen.getByRole('button',{name:'设置'}));await user.click(screen.getByRole('button',{name:'恢复此组默认'}));await waitFor(()=>expect(data['layout:searchEngine']).toBe('browser'));await waitFor(()=>expect(data['layout:openInNewTab']).toBe(false));expect(screen.getByRole('link',{name:'开发文档'}).hasAttribute('target')).toBe(false);});
-it('waits for saved preferences before allowing the first engine submission',async()=>{const user=userEvent.setup();let release!:()=>void;const gate=new Promise<void>(resolve=>release=resolve);const get=chrome.storage.local.get as any;(chrome.storage.local as any).get=async(...args:any[])=>{await gate;return get(...args);};const query=vi.fn((_options:any,cb:()=>void)=>cb());(chrome as any).search={query};render(<App/>);await user.type(screen.getByRole('searchbox'),'hello{Enter}');expect(query).not.toHaveBeenCalled();release();await screen.findByRole('link',{name:'开发文档'});await user.keyboard('{Enter}');await waitFor(()=>expect(query).toHaveBeenCalledTimes(1));});
-it('keeps save errors visible after closing settings and retries the preview',async()=>{const user=userEvent.setup();render(<App/>);await screen.findByRole('link',{name:'开发文档'});let reject!: (error:Error)=>void;const original=chrome.storage.local.set;chrome.storage.local.set=vi.fn(()=>new Promise<void>((_resolve,fail)=>reject=fail)) as any;await user.click(screen.getByRole('button',{name:'设置'}));await user.selectOptions(screen.getByRole('combobox',{name:'期望列数'}),'9');await user.click(screen.getByRole('button',{name:'关闭设置'}));reject(Error('磁盘暂不可用'));await waitFor(()=>expect(screen.getByRole('alert').textContent).toContain('磁盘暂不可用'));events[4].forEach(f=>f());await user.click(screen.getByRole('button',{name:'设置'}));expect((screen.getByRole('combobox',{name:'期望列数'}) as HTMLSelectElement).value).toBe('9');await user.click(screen.getByRole('button',{name:'关闭设置'}));chrome.storage.local.set=original;await user.click(screen.getByRole('button',{name:'重试保存'}));await waitFor(()=>expect(data['layout:columns']).toBe(9));await waitFor(()=>expect(screen.queryByRole('alert')).toBeNull());});
-it('closes settings when keyboard focus leaves and offers scoped resets',async()=>{const user=userEvent.setup();data['layout:searchEngine']='google';render(<App/>);await screen.findByRole('link',{name:'开发文档'});await user.click(screen.getByRole('button',{name:'设置'}));await user.selectOptions(screen.getByRole('combobox',{name:'期望列数'}),'8');await user.click(screen.getByRole('button',{name:'恢复布局默认'}));await waitFor(()=>expect(data['layout:columns']).toBe(6));expect((screen.getByRole('combobox',{name:'网页搜索引擎'}) as HTMLSelectElement).value).toBe('google');screen.getByRole('combobox',{name:'书签打开方式'}).focus();await user.tab();expect(screen.queryByRole('dialog',{name:'页面设置'})).toBeNull();expect(document.activeElement).toBe(screen.getByRole('button',{name:'设置'}));});
+it("defaults to engine mode without filtering and submits only on Enter", async () => {
+  const user = userEvent.setup();
+  const query = vi.fn((_options: any, cb: () => void) => cb());
+  (chrome as any).search = { query };
+  render(<App />);
+  await screen.findByRole("link", { name: "开发文档" });
+  expect(
+    (screen.getByRole("combobox", { name: "搜索模式" }) as HTMLSelectElement)
+      .value,
+  ).toBe("engine");
+  await user.type(screen.getByRole("searchbox"), "react.dev");
+  expect(screen.getAllByRole("link")).toHaveLength(2);
+  expect(query).not.toHaveBeenCalled();
+  await user.keyboard("{Enter}");
+  await waitFor(() => expect(query).toHaveBeenCalledTimes(1));
+  expect(query.mock.calls[0][0]).toEqual({
+    text: "react.dev",
+    disposition: "CURRENT_TAB",
+  });
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "搜索模式" }),
+    "bookmarks",
+  );
+  expect(screen.getAllByRole("link")).toHaveLength(1);
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "搜索模式" }),
+    "engine",
+  );
+  expect(screen.getAllByRole("link")).toHaveLength(2);
+});
+it("shows search errors and retries without choosing a provider", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: "开发文档" });
+  await user.type(screen.getByRole("searchbox"), "query{Enter}");
+  await waitFor(() =>
+    expect(screen.getByRole("alert").textContent).toContain("搜索不可用"),
+  );
+  const query = vi.fn((_options: any, cb: () => void) => cb());
+  (chrome as any).search = { query };
+  await user.click(screen.getByRole("button", { name: "重试搜索" }));
+  await waitFor(() => expect(query).toHaveBeenCalledTimes(1));
+});
+it("freezes the fallback frequency snapshot when the first usage read fails", async () => {
+  const runtime = chrome.runtime as any;
+  const send = runtime.sendMessage;
+  let first = true;
+  runtime.sendMessage = (message: any, callback: any) => {
+    if (message.type === "usage:load" && first) {
+      first = false;
+      callback({ ok: false, error: "startup failure" });
+    } else send(message, callback);
+  };
+  render(<App />);
+  await screen.findByRole("alert");
+  const before = screen.getAllByRole("link").map((link) => link.textContent);
+  fireEvent(
+    screen.getByRole("link", { name: "中文社区" }),
+    new MouseEvent("auxclick", { button: 1, bubbles: true }),
+  );
+  await waitFor(() => expect(data["usage:b"]?.count).toBe(1));
+  events[4].forEach((f) => f());
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(
+    before,
+  );
+});
+it("does not expose links before the initial frequency read settles", async () => {
+  const runtime = chrome.runtime as any;
+  const send = runtime.sendMessage;
+  let release: (() => void) | undefined;
+  runtime.sendMessage = (message: any, callback: any) => {
+    if (message.type === "usage:load") release = () => send(message, callback);
+    else send(message, callback);
+  };
+  render(<App />);
+  await waitFor(() => expect(release).toBeDefined());
+  expect(screen.queryAllByRole("link")).toHaveLength(0);
+  release!();
+  await screen.findByRole("link", { name: "开发文档" });
+});
+it("persists search engine and bookmark opening preferences and applies them", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: "开发文档" });
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "网页搜索引擎" }),
+    "baidu",
+  );
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "书签打开方式" }),
+    "new",
+  );
+  await waitFor(() => expect(data["layout:searchEngine"]).toBe("baidu"));
+  await waitFor(() => expect(data["layout:openInNewTab"]).toBe(true));
+  expect(
+    screen.getByRole("link", { name: "开发文档" }).getAttribute("target"),
+  ).toBe("_blank");
+  await user.click(screen.getByRole("button", { name: "关闭设置" }));
+  expect(screen.getByText("百度")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  await user.click(screen.getByRole("button", { name: "恢复此组默认" }));
+  await waitFor(() => expect(data["layout:searchEngine"]).toBe("browser"));
+  await waitFor(() => expect(data["layout:openInNewTab"]).toBe(false));
+  expect(
+    screen.getByRole("link", { name: "开发文档" }).hasAttribute("target"),
+  ).toBe(false);
+});
+it("waits for saved preferences before allowing the first engine submission", async () => {
+  const user = userEvent.setup();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const get = chrome.storage.local.get as any;
+  (chrome.storage.local as any).get = async (...args: any[]) => {
+    await gate;
+    return get(...args);
+  };
+  const query = vi.fn((_options: any, cb: () => void) => cb());
+  (chrome as any).search = { query };
+  render(<App />);
+  await user.type(screen.getByRole("searchbox"), "hello{Enter}");
+  expect(query).not.toHaveBeenCalled();
+  release();
+  await screen.findByRole("link", { name: "开发文档" });
+  await user.keyboard("{Enter}");
+  await waitFor(() => expect(query).toHaveBeenCalledTimes(1));
+});
+it("keeps save errors visible after closing settings and retries the preview", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("link", { name: "开发文档" });
+  let reject!: (error: Error) => void;
+  const original = chrome.storage.local.set;
+  chrome.storage.local.set = vi.fn(
+    () => new Promise<void>((_resolve, fail) => (reject = fail)),
+  ) as any;
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "期望列数" }),
+    "9",
+  );
+  await user.click(screen.getByRole("button", { name: "关闭设置" }));
+  reject(Error("磁盘暂不可用"));
+  await waitFor(() =>
+    expect(screen.getByRole("alert").textContent).toContain("磁盘暂不可用"),
+  );
+  events[4].forEach((f) => f());
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  expect(
+    (screen.getByRole("combobox", { name: "期望列数" }) as HTMLSelectElement)
+      .value,
+  ).toBe("9");
+  await user.click(screen.getByRole("button", { name: "关闭设置" }));
+  chrome.storage.local.set = original;
+  await user.click(screen.getByRole("button", { name: "重试保存" }));
+  await waitFor(() => expect(data["layout:columns"]).toBe(9));
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+});
+it("closes settings when keyboard focus leaves and offers scoped resets", async () => {
+  const user = userEvent.setup();
+  data["layout:searchEngine"] = "google";
+  render(<App />);
+  await screen.findByRole("link", { name: "开发文档" });
+  await user.click(screen.getByRole("button", { name: "设置" }));
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "期望列数" }),
+    "8",
+  );
+  await user.click(screen.getByRole("button", { name: "恢复布局默认" }));
+  await waitFor(() => expect(data["layout:columns"]).toBe(6));
+  expect(
+    (
+      screen.getByRole("combobox", {
+        name: "网页搜索引擎",
+      }) as HTMLSelectElement
+    ).value,
+  ).toBe("google");
+  screen.getByRole("combobox", { name: "书签打开方式" }).focus();
+  await user.tab();
+  expect(screen.queryByRole("dialog", { name: "页面设置" })).toBeNull();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "设置" }),
+  );
+});
+
+it("cancels deletion without touching the original bookmark and focuses Cancel", async () => {
+  const user = userEvent.setup();
+  const remove = vi.fn();
+  chrome.bookmarks.remove = remove;
+  render(<App />);
+  await user.click(
+    await screen.findByRole("button", { name: "编辑 开发文档" }),
+  );
+  await user.click(screen.getByRole("button", { name: "删除书签" }));
+  expect(
+    screen.getByRole("dialog", { name: "确认删除书签" }).textContent,
+  ).toContain("https://react.dev");
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "取消删除" }),
+  );
+  await user.click(screen.getByRole("button", { name: "取消删除" }));
+  expect(screen.getByRole("textbox", { name: "显示名称" })).toBeTruthy();
+  expect(remove).not.toHaveBeenCalled();
+});
+it("deletes only the selected ID and cleans its alias, pin and frequency", async () => {
+  const user = userEvent.setup();
+  items[1].url = items[0].url;
+  data["name:a"] = "我的文档";
+  data["usage:a"] = { count: 7, lastOpened: 1, pinned: true };
+  data["name:b"] = "其他文档";
+  const store = createUsageStore(chrome);
+  chrome.bookmarks.remove = vi.fn(async (id: string) => {
+    items = items.filter((b) => b.id !== id);
+    await store.remove([id]);
+    events[3].forEach((f) => f());
+  });
+  render(<App />);
+  await user.click(
+    await screen.findByRole("button", { name: "编辑 我的文档" }),
+  );
+  await user.click(screen.getByRole("button", { name: "删除书签" }));
+  expect(chrome.bookmarks.remove).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "确认删除" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(chrome.bookmarks.remove).toHaveBeenCalledExactlyOnceWith("a");
+  await screen.findByText("1 个书签");
+  expect(screen.getByRole("link", { name: "其他文档" })).toBeTruthy();
+  expect(data["name:a"]).toBeUndefined();
+  expect(data["usage:a"]).toBeUndefined();
+  expect(data["name:b"]).toBe("其他文档");
+});
+it("retains confirmation after delete failure and allows a single pending retry", async () => {
+  const user = userEvent.setup();
+  let done!: () => void;
+  const remove = vi
+    .fn()
+    .mockRejectedValueOnce(Error("禁止删除"))
+    .mockImplementationOnce(
+      () => new Promise<void>((resolve) => (done = resolve)),
+    );
+  chrome.bookmarks.remove = remove;
+  render(<App />);
+  await user.click(
+    await screen.findByRole("button", { name: "编辑 开发文档" }),
+  );
+  await user.click(screen.getByRole("button", { name: "删除书签" }));
+  await user.click(screen.getByRole("button", { name: "确认删除" }));
+  expect(await screen.findByRole("alert")).toHaveProperty(
+    "textContent",
+    expect.stringContaining("禁止删除"),
+  );
+  expect(items).toHaveLength(2);
+  await user.dblClick(screen.getByRole("button", { name: "确认删除" }));
+  expect(remove).toHaveBeenCalledTimes(2);
+  expect(
+    (screen.getByRole("button", { name: "取消删除" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  items = items.filter((b) => b.id !== "a");
+  done();
+  await screen.findByText("1 个书签");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+it("does not resurrect a successfully deleted bookmark when local cleanup fails", async () => {
+  const user = userEvent.setup();
+  data["name:a"] = "我的文档";
+  chrome.bookmarks.remove = vi.fn(async (id: string) => {
+    items = items.filter((b) => b.id !== id);
+  });
+  render(<App />);
+  await user.click(
+    await screen.findByRole("button", { name: "编辑 我的文档" }),
+  );
+  await user.click(screen.getByRole("button", { name: "删除书签" }));
+  chrome.storage.local.remove = vi
+    .fn()
+    .mockRejectedValue(Error("本地清理失败"));
+  await user.click(screen.getByRole("button", { name: "确认删除" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("link", { name: "我的文档" })).toBeNull();
+  expect(chrome.bookmarks.remove).toHaveBeenCalledTimes(1);
+});

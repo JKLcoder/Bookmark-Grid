@@ -38,6 +38,7 @@ try {
  await page.getByRole('searchbox').fill('前端开发');
  assert.equal(await page.getByRole('link').count(),1);
  await page.getByRole('button',{name:'清空搜索'}).click();
+ await page.getByRole('link',{name:'React 文档',exact:true}).hover();
  await page.getByRole('button',{name:'编辑 React 文档',exact:true}).click();
  await page.getByRole('textbox',{name:'显示名称'}).fill('我的前端文档');
  await page.getByRole('button',{name:'保存名称',exact:true}).click();
@@ -57,6 +58,15 @@ try {
  await page.screenshot({path:'/tmp/bookmark-grid-mobile.png',fullPage:true});
  assert.deepEqual(external,[],'Extension page must not make external requests');
  assert.deepEqual(errors,[],'No browser runtime errors');
+ await page.setViewportSize({width:1440,height:1000});
+ await page.getByRole('link',{name:'更新原始标题',exact:true}).hover();
+ await page.getByRole('button',{name:'编辑 更新原始标题',exact:true}).click();
+ await page.getByRole('button',{name:'删除书签',exact:true}).click();
+ await page.getByRole('button',{name:'确认删除',exact:true}).click();
+ await page.getByRole('dialog').waitFor({state:'detached'});
+ await page.getByText('13 个书签',{exact:true}).waitFor();
+ assert.equal(await worker.evaluate(async id=>{try{await chrome.bookmarks.get(id);return false;}catch{return true;}},fixture.b.id),true);
+ assert.equal(await page.getByRole('link',{name:'我的前端文档',exact:true}).count(),1);
  await page.close();
  await worker.evaluate(async id=>chrome.bookmarks.removeTree(id),fixture.folder.id);
  // A real storage read checks cleanup even while all extension pages are closed.
