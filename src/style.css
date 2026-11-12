@@ -34,7 +34,7 @@ header h1 { font-size: 22px; font-weight: 500; margin: 0; letter-spacing: -.3px;
 .bookmark-grid { display: grid; list-style: none; padding: 0; margin: 0; }
 .bookmark-item { position: relative; min-width: 0; border-left: 1px solid transparent; border-radius: 3px; }
 .bookmark-item:hover, .bookmark-item:focus-within { background: #252d29; border-left-color: var(--accent); }
-.bookmark-item a { display: flex; align-items: center; gap: 8px; padding: 9px 30px 9px 10px; min-height: 42px; font-size: var(--item-size, 16px); line-height: 1.5; color: inherit; text-decoration: none; }
+.bookmark-item a { display: flex; align-items: center; gap: 8px; padding: 9px 55px 9px 10px; min-height: 42px; font-size: var(--item-size, 16px); line-height: 1.5; color: inherit; text-decoration: none; }
 .item-name { display: block; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .edit-button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 3px; border: none; color: var(--accent); opacity: 0; display: flex; align-items: center; }
 .edit-button svg { width: 18px; height: 18px; }
@@ -84,3 +84,8 @@ dialog input { width: 100%; border: 1px solid #74867a; border-radius: 5px; backg
 .bookmark-favicon { display: inline-flex; align-items: center; justify-content: center; width: var(--item-size, 16px); height: var(--item-size, 16px); flex: 0 0 var(--item-size, 16px); color: #a8b2ac; }
 .bookmark-favicon img, .bookmark-favicon svg { display: block; width: 100%; height: 100%; object-fit: contain; }
 .size-setting label { flex-basis: 112px; font-size: 14px; }
+
+.pin-button { position: absolute; right: 28px; top: 50%; transform: translateY(-50%); border: none; display: flex; padding: 3px; opacity: 0; color: var(--accent); }
+.pin-button svg { width: 16px; height: 16px; }
+.bookmark-item:hover .pin-button, .bookmark-item:focus-within .pin-button, .is-pinned .pin-button { opacity: 1; }
+@media (hover: none) { .pin-button { opacity: 1; } }
