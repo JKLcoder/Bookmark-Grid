@@ -92,3 +92,9 @@ Final review regression fix: freeze an empty frequency snapshot after the first 
 - Page-owned serialized preference writes retain unsaved previews through storage refresh and panel closure. Fault-injection browser and hook tests cover retry, stale reads, newer changes, and compensating undo of in-flight writes.
 - Search has a visible submit button, persistent provider and `/` focus shortcut. Existing native anchor opening, pinned/frequency ordering and provider navigation regressions pass. Provider responses are intercepted locally in browser tests; real extension loading remains unavailable under managed Chromium policy.
 - 95 unit/integration tests passed; TypeScript/Vite build and production-page Chromium checks passed. No new permissions/dependencies.
+
+## 1.5.1 favicon image sizing fix
+
+- Real favicon images lacked the SVG size constraint and overflowed their fixed wrapper. A decoded 64px image regression failed with actual width 64 versus expected 12 before the fix.
+- Apply explicit 100% width/height, block display and contain fit to both image and SVG; retain the shared font/icon size. Increase icon/text gap to clamp(10px, 0.5em, 14px).
+- Production-browser regression verifies actual image bounds equal the selected size at 12px and 28px and at least 10px of clear space before text. 95 tests, build and browser regression pass.

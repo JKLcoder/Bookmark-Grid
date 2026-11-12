@@ -79,9 +79,22 @@ try{
  assert.equal(await page.getByRole('slider',{name:'行间距'}).inputValue(),'5');
  assert.equal(await page.getByRole('slider',{name:'列间距'}).inputValue(),'13');
  assert.equal(await page.getByRole('slider',{name:'文字与图标大小'}).inputValue(),'17');
+ // Use a decoded high-resolution image: fallback SVG-only checks missed intrinsic-image overflow.
+ await page.locator('.bookmark-favicon').first().evaluate(async holder=>{
+  const image=new Image();image.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#9ac9ae"/></svg>');
+  await image.decode();holder.replaceChildren(image);
+ });
  for(const [key,size] of [['Home',12],['End',28]]){
   await page.getByRole('slider',{name:'文字与图标大小'}).focus();await page.keyboard.press(key);
   await page.waitForFunction(expected=>{const link=document.querySelector('.bookmark-item a');const icon=link.querySelector('.bookmark-favicon');return getComputedStyle(link).fontSize===`${expected}px`&&icon.getBoundingClientRect().width===expected&&icon.getBoundingClientRect().height===expected;},size);
+  const imageGeometry=await page.locator('.bookmark-item').first().evaluate(item=>{
+   const image=item.querySelector('.bookmark-favicon img').getBoundingClientRect();
+   const text=item.querySelector('.item-name').getBoundingClientRect();
+   return {width:image.width,height:image.height,gap:text.left-image.right};
+  });
+  assert.equal(imageGeometry.width,size,'real favicon width must match text size');
+  assert.equal(imageGeometry.height,size,'real favicon height must match text size');
+  assert.ok(imageGeometry.gap>=10,'favicon must leave at least 10px before text');
  }
  await page.getByRole('button',{name:'恢复布局默认'}).click();
  await page.waitForFunction(()=>document.querySelector('#columns').value==='6'&&document.querySelector('#rowGap').value==='4'&&document.querySelector('#columnGap').value==='12');

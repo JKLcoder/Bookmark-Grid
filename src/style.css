@@ -288,7 +288,7 @@ select option {
 .bookmark-link {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: clamp(10px, 0.5em, 14px);
   color: inherit;
   text-decoration: none;
   padding: 8px;
@@ -306,9 +306,12 @@ select option {
   height: var(--item-size);
   color: #a6bbb0;
 }
-.bookmark-favicon svg {
+.bookmark-favicon svg,
+.bookmark-favicon img {
+  display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 .item-name {
   min-width: 0;
