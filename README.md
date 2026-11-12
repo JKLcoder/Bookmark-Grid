@@ -31,7 +31,7 @@ npm run build
 
 ## 使用
 
-界面采用深色紧凑布局，每个 Item 仅显示名称，不展示域名或 URL。URL、域名和原路径仍可搜索；真实链接地址及原生点击行为保持不变。默认 6 列、行间距 4px、列间距 12px。
+界面采用深色紧凑布局，每个 Item 在名称前显示与文字等大的小号网站图标，不展示域名或 URL。URL、域名和原路径仍可搜索；真实链接地址及原生点击行为保持不变。默认 6 列、行间距 4px、列间距 12px，文字与图标同为 16px。
 
 - 自动读取全部书签，包括多层嵌套目录；保留重复 URL，不显示文件夹分组。
 - 默认按显示名称进行中文拼音排序，数字采用自然排序。
@@ -39,13 +39,15 @@ npm run build
 - 点击文字在当前标签页打开；Ctrl / Command 点击、中键点击由原生链接处理。
 - 悬停或 Tab 聚焦 Item 出现编辑按钮，触屏上按钮始终可见。
 - 编辑仅改变显示名称；留空或点击“恢复原标题”删除该别名。无别名时原标题变化会立即反映。
-- 设置入口支持列数（自动或 1–12 列）、行间距（0–32px）、列间距（0–48px），调整即时预览并保存在本机，可一键恢复默认。窄屏会自动减少实际列数，避免横向溢出。
+- 设置入口支持列数（自动或 1–12 列）、行间距（0–32px）、列间距（0–48px）、文字与图标的统一大小（12–28px），调整即时预览并保存在本机，可一键恢复默认。窄屏会自动减少实际列数，避免横向溢出。
 
 ## 数据与权限
 
-仅申请 `bookmarks`、`storage`，没有 `tabs` 或 `host_permissions`。应用只调用 `chrome.bookmarks.getTree()` 和监听 `onCreated`、`onChanged`、`onMoved`、`onRemoved`，不修改、重命名或删除原始书签。
+网站小图标通过 Chrome 自带的 `/_favicon/` 接口读取，需要 `favicon` 权限和 Chrome 93+。不使用 Google S2 或其他远程图标服务，不会把书签 URL 发给第三方图标服务。无可用图标、加载失败或非 HTTP(S) 书签使用随扩展打包的通用图标。文字与图标严格使用相同的 CSS 像素尺寸；旧版本没有此设置时自动使用 16px。
 
-布局偏好独立使用 `layout:columns`、`layout:rowGap`、`layout:columnGap` 保存；不会与 `name:` 别名键混淆。原始书签是唯一数据源，不复制到持久化存储。自定义名称存入 `chrome.storage.local`，每个书签单独保存为 `name:<bookmarkId>` → 名称，内存中再合并为 ID 到别名的映射。独立键避免多页面编辑不同书签时覆盖整个别名表。多个页面修改同一 ID 时以后一次写入为准。
+申请 `bookmarks`、`storage`、`favicon`，没有 `tabs` 或 `host_permissions`。应用只调用 `chrome.bookmarks.getTree()` 和监听 `onCreated`、`onChanged`、`onMoved`、`onRemoved`，不修改、重命名或删除原始书签。
+
+布局偏好独立使用 `layout:columns`、`layout:rowGap`、`layout:columnGap`、`layout:itemSize` 保存；不会与 `name:` 别名键混淆。原始书签是唯一数据源，不复制到持久化存储。自定义名称存入 `chrome.storage.local`，每个书签单独保存为 `name:<bookmarkId>` → 名称，内存中再合并为 ID 到别名的映射。独立键避免多页面编辑不同书签时覆盖整个别名表。多个页面修改同一 ID 时以后一次写入为准。
 
 后台 service worker 在删除书签/整个目录时清理对应别名，即使新标签页没有打开也会运行。页面加载时再次清理遗留记录。存储或读取失败会提示错误和重试，不报告虚假成功。其他扩展页面的 storage 变化也会触发刷新。
 
@@ -81,4 +83,4 @@ npm run test:e2e
 
 在受管理的云浏览器中，如果扩展参数被忽略或企业策略禁止书签编辑，`test:e2e` 可能无法启动其临时扩展/创建测试书签。不要修改系统企业策略。可运行 `npm run test:browser`：它对生产构建页面注入模拟 Chrome API，验证实际 Chromium 中的搜索、改名、重载持久化、对话框和响应式布局。此检查不能替代真实扩展 API 验证。
 
-本次云环境验证结果：42 项单元/集成测试通过；TypeScript 与 Vite 构建通过；生产页面浏览器测试通过。真实解压扩展测试因受管理 Chromium 未加载命令行指定的扩展而超时，未完成；环境还设置了 `EditBookmarksEnabled: false`。在个人 Chrome 中请按上述步骤加载 `dist/` 完成最终安装验收。
+本次云环境验证结果：49 项单元/集成测试通过；TypeScript 与 Vite 构建通过；生产页面浏览器测试通过。真实解压扩展测试因受管理 Chromium 未加载命令行指定的扩展而超时，未完成；环境还设置了 `EditBookmarksEnabled: false`。在个人 Chrome 中请按上述步骤加载 `dist/` 完成最终安装验收。

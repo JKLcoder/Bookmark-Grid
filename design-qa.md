@@ -46,3 +46,16 @@ final result: passed
 - [x] Configurable row/column gaps, immediate preview, independent local storage keys and reset.
 - [x] Existing search, aliases, native navigation and bookmark events preserved.
 - [x] Desktop/mobile browser validation and post-fix visual comparison.
+
+## 1.2 incremental change: website favicons and shared sizing
+
+User-directed changes supersede the title-only/no-icons portion of the earlier visual target: small favicon before each name, and a single setting for both text and icon size. The dark layout, grid, spacing controls, edit behavior and navigation remain intact.
+
+- Current desktop evidence: `docs/design/favicon-desktop.png` at 1487 × 1058, scale 1, settings open and one bookmark hovered.
+- Current mobile evidence: `docs/design/favicon-mobile.png` at 390px, scale 1. Added control fits the panel without horizontal overflow.
+- Both screenshots inspected directly. Icons align vertically with names and retain the same computed size as the font. The browser fixture has no extension runtime, so screenshots intentionally show the bundled generic fallback, not actual site favicons.
+- Browser checks confirm exact icon width/height and text font-size at both 12px and 28px, setting persistence after reload, and reset to 16px. Images are decorative and do not alter accessible link names. No external requests or page errors.
+- Unit tests cover Chrome internal favicon URL construction and encoding, non-web URL handling, missing runtime fallback, image load errors, persisted size bounds and old-setting defaults.
+- 49 tests pass. TypeScript/Vite build and production-page Chromium check pass. Actual favicon appearance through Chrome's extension runtime remains a personal-Chrome acceptance check; this managed environment does not support the real extension smoke as previously documented.
+- Added `favicon` permission and Chrome 93 minimum version. No host permissions, third-party favicon endpoints or bookmark mutations.
+- Current incremental visual result: passed; no actionable P0/P1/P2 findings.

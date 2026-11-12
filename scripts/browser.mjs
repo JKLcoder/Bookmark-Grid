@@ -42,12 +42,19 @@ try{
  await page.waitForFunction(()=>document.querySelector('.bookmark-grid').style.rowGap==='5px');
  await page.getByRole('slider',{name:'列间距'}).focus();await page.keyboard.press('ArrowRight');
  await page.waitForFunction(()=>document.querySelector('.bookmark-grid').style.columnGap==='13px');
+ await page.getByRole('slider',{name:'文字与图标大小'}).focus();await page.keyboard.press('ArrowRight');
+ await page.waitForFunction(()=>getComputedStyle(document.querySelector('.bookmark-item a')).fontSize==='17px');
  await page.getByRole('button',{name:'关闭设置'}).click();
  await page.reload();await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
  await page.getByRole('button',{name:'设置',exact:true}).click();
  assert.equal(await page.getByRole('combobox',{name:'列数'}).inputValue(),'8');
  assert.equal(await page.getByRole('slider',{name:'行间距'}).inputValue(),'5');
  assert.equal(await page.getByRole('slider',{name:'列间距'}).inputValue(),'13');
+ assert.equal(await page.getByRole('slider',{name:'文字与图标大小'}).inputValue(),'17');
+ for(const [key,size] of [['Home',12],['End',28]]){
+  await page.getByRole('slider',{name:'文字与图标大小'}).focus();await page.keyboard.press(key);
+  await page.waitForFunction(expected=>{const link=document.querySelector('.bookmark-item a');const icon=link.querySelector('.bookmark-favicon');return getComputedStyle(link).fontSize===`${expected}px`&&icon.getBoundingClientRect().width===expected&&icon.getBoundingClientRect().height===expected;},size);
+ }
  await page.getByRole('button',{name:'恢复默认'}).click();
  await page.waitForFunction(()=>document.querySelector('#columns').value==='6'&&document.querySelector('#rowGap').value==='4'&&document.querySelector('#columnGap').value==='12');
  await page.getByRole('button',{name:'关闭设置'}).click();
@@ -64,5 +71,5 @@ try{
  assert.equal(await page.locator('.item-domain').count(),0);
  assert.equal(await page.locator('.bookmark-item a').first().evaluate(el=>getComputedStyle(el).height),'42px');
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
- console.log('PASS: production page with mocked Chrome API: 36 bookmarks; layout column/gap settings persist, reset and responsive cap, duplicate-URL search, alias editing/reload, native modal Escape, desktop/mobile layouts, no external requests or runtime errors.');
+ console.log('PASS: production page with mocked Chrome API: 36 bookmarks; layout columns/gaps/shared icon-text sizes persist; 12px and 28px dimensions match; reset and responsive cap, duplicate-URL search, alias editing/reload, native modal Escape, desktop/mobile layouts, no external requests or runtime errors.');
 }finally{await context?.close();await new Promise(r=>server.close(r));await rm(profile,{recursive:true,force:true});}
