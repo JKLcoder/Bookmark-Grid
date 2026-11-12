@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Cross2Icon, GearIcon } from '@radix-ui/react-icons';
 import SearchBar,{type SearchMode} from './SearchBar';
-import {searchWithDefaultEngine} from './engine-search';
+import {searchWithEngine,ENGINE_NAMES} from './engine-search';
 import BookmarkGrid from './BookmarkGrid';
 import LayoutSettings from './LayoutSettings';
 import { DEFAULT_LAYOUT, loadLayout, type Layout } from './layout';
@@ -72,9 +72,9 @@ export default function App() {
  },[]);
  const visible=rankBookmarks(searchBookmarks(bookmarks,mode==='bookmarks'?query:''),snapshot,usage);
  async function submitSearch(){
-  if(mode!=='engine'||!query.trim()||searching.current)return;
+  if(loading||mode!=='engine'||!query.trim()||searching.current)return;
   searching.current=true;setSearchBusy(true);setSearchError('');
-  try {await searchWithDefaultEngine(query);}
+  try {await searchWithEngine(query,layout.searchEngine);}
   catch(error){setSearchError(error instanceof Error?error.message:'搜索失败，请重试。');}
   finally{searching.current=false;setSearchBusy(false);}
  }
@@ -86,7 +86,7 @@ export default function App() {
  return <main>
   <header><h1>Bookmark Grid</h1><button className="settings-button" onClick={()=>setSettings(value=>!value)} aria-label="设置" aria-expanded={settings} aria-controls="layout-settings">设置 <GearIcon/></button></header>
   <section className="workspace" aria-label="书签">
-   <SearchBar mode={mode} query={query} onModeChange={value=>{setMode(value);setSearchError('');}} onQueryChange={value=>{setQuery(value);setSearchError('');}} onSubmit={()=>void submitSearch()} busy={searchBusy} error={searchError}/>
+   <SearchBar mode={mode} query={query} onModeChange={value=>{setMode(value);setSearchError('');}} onQueryChange={value=>{setQuery(value);setSearchError('');}} onSubmit={()=>void submitSearch()} busy={searchBusy||loading} error={searchError} engineName={ENGINE_NAMES[layout.searchEngine]}/>
    <div className="info" aria-live="polite"><span>{loading?'正在读取书签…':mode==='bookmarks'&&query.trim()?`${visible.length} / ${bookmarks.length} 个书签`:`${bookmarks.length} 个书签`}</span><span>置顶优先 · 按使用频率排序</span></div>
    {error&&<div role="alert" className="error-banner"><span>{error}</span><button onClick={()=>refreshRef.current()}>重试</button></div>}
    {notice&&<div role="alert" className="error-banner"><span>{notice}</span><button onClick={()=>refreshRef.current()}>重试</button></div>}
@@ -96,7 +96,7 @@ export default function App() {
    <footer>本地存储 · 不上传书签</footer>
   </section>
   {editing&&<Rename key={editing.id} bookmark={editing} onClose={()=>setEditing(null)} onSaved={()=>refreshRef.current()}/>}
-  {settings&&<LayoutSettings layout={layout} onChange={setLayout} onClose={closeSettings}/>}
+  {settings&&<LayoutSettings layout={layout} onChange={value=>{setLayout(value);setSearchError('');}} onClose={closeSettings}/>}
 
  </main>;
 }

@@ -17,12 +17,16 @@ export default function LayoutSettings({layout,onChange,onClose}:{layout:Layout;
   onChange({...layout,[field]:value});setError('');
   queue.current=queue.current.catch(()=>{}).then(()=>saveLayoutField(field,value)).catch(error=>setError(`保存失败：${error instanceof Error?error.message:'请重试'}。再次调整可重试。`));
  }
- function reset(){onChange({...DEFAULT_LAYOUT});setError('');queue.current=queue.current.catch(()=>{}).then(async()=>{for(const field of ['columns','rowGap','columnGap','itemSize'] as const)await saveLayoutField(field,DEFAULT_LAYOUT[field]);}).catch(error=>setError(`保存失败：${error instanceof Error?error.message:'请重试'}`));}
+ function reset(){onChange({...DEFAULT_LAYOUT});setError('');queue.current=queue.current.catch(()=>{}).then(async()=>{for(const field of ['columns','rowGap','columnGap','itemSize','searchEngine','openInNewTab'] as const)await saveLayoutField(field,DEFAULT_LAYOUT[field]);}).catch(error=>setError(`保存失败：${error instanceof Error?error.message:'请重试'}`));}
  return <div ref={ref} className="layout-settings" role="dialog" aria-labelledby="layout-title" id="layout-settings">
-  <div className="dialog-heading"><h2 id="layout-title">网格布局</h2><button className="icon-button" aria-label="关闭设置" onClick={onClose}><Cross2Icon/></button></div>
+  <div className="dialog-heading"><h2 id="layout-title">页面设置</h2><button className="icon-button" aria-label="关闭设置" onClick={onClose}><Cross2Icon/></button></div>
   <div className="setting-row"><label htmlFor="columns">列数</label><select id="columns" value={layout.columns} onChange={e=>update('columns',e.target.value==='auto'?'auto':Number(e.target.value))}><option value="auto">自动</option>{Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{i+1} 列</option>)}</select></div>
   {(['rowGap','columnGap'] as const).map(field=><div className="setting-row" key={field}><label htmlFor={field}>{field==='rowGap'?'行间距':'列间距'}</label><input id={field} type="range" min="0" max={field==='rowGap'?32:48} step="1" value={layout[field]} onChange={e=>update(field,Number(e.target.value))}/><output htmlFor={field}>{layout[field]} px</output></div>)}
   <div className="setting-row size-setting"><label htmlFor="itemSize">文字与图标大小</label><input id="itemSize" type="range" min="12" max="28" step="1" value={layout.itemSize} onChange={e=>update('itemSize',Number(e.target.value))}/><output htmlFor="itemSize">{layout.itemSize} px</output></div>
+  <div className="settings-section">
+   <div className="setting-row preference-row"><label htmlFor="search-engine">默认搜索引擎</label><select id="search-engine" value={layout.searchEngine} onChange={e=>update('searchEngine',e.target.value as Layout['searchEngine'])}><option value="browser">跟随 Chrome</option><option value="baidu">百度</option><option value="google">Google</option></select></div>
+   <div className="setting-row preference-row"><label htmlFor="open-mode">网站打开方式</label><select id="open-mode" value={layout.openInNewTab?'new':'current'} onChange={e=>update('openInNewTab',e.target.value==='new')}><option value="current">当前标签页</option><option value="new">新标签页</option></select></div>
+  </div>
   <p className="muted">窄屏自动减少列数。</p>{error&&<p role="alert" className="error">{error}</p>}
   <div className="settings-footer"><span>仅保存在本机</span><button onClick={reset}>恢复默认</button></div>
  </div>;

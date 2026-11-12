@@ -97,3 +97,6 @@ dialog input { width: 100%; border: 1px solid #74867a; border-radius: 5px; backg
  .search-wrap .search-icon { display: none; }
  .info > span:last-child { font-size: 10px; }
 }
+
+.settings-section { margin-top: 20px; padding-top: 2px; border-top: 1px solid #59655d; }
+.preference-row label { flex-basis: 112px; font-size: 14px; }

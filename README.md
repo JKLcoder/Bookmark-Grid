@@ -13,7 +13,7 @@ npm test
 npm run build
 ```
 
-构建结果为 `dist/`，包括 Manifest、React 页面、静态资源和后台清理脚本。所有资源打包在本地，无 CDN、后端或账号。书签筛选和使用记录在本地处理；仅在引擎模式主动提交时，将关键词交给 Chrome 默认搜索引擎。
+构建结果为 `dist/`，包括 Manifest、React 页面、静态资源和后台清理脚本。所有资源打包在本地，无 CDN、后端或账号。书签筛选和使用记录在本地处理；仅在引擎模式主动提交时，将关键词交给设置中选择的搜索引擎。
 
 `npm run dev` 可用于页面开发，但普通网页没有 Chrome Bookmarks API，会显示加载扩展的提示，不会伪造书签。验证真实行为请加载 `dist/`。修改后重新构建，在扩展页点击重新加载，并打开新标签页。
 
@@ -35,11 +35,17 @@ npm run build
 
 - 自动读取全部书签，包括多层嵌套目录；保留重复 URL，不显示文件夹分组。
 - 置顶书签优先，然后按累计打开次数、最近打开时间排序；相同时按中文友好的显示名称排序。全新安装尚无点击记录时按名称排序。
-- 输入框左侧下拉切换“引擎 / 书签”，每次打开或刷新默认进入引擎模式。引擎模式不筛选书签，按 Enter 调用 Chrome 默认搜索引擎，在当前标签页打开结果；输入过程不发送关键词，不提供在线联想。书签模式实时筛选自定义名称、原标题、URL、域名和原文件夹路径，Enter 不提交网页搜索。切换模式保留文字，清空恢复全部。
-- 点击文字在当前标签页打开；Ctrl / Command 点击、中键点击由原生链接处理。
+- 输入框左侧下拉切换“引擎 / 书签”，每次打开或刷新默认进入引擎模式。引擎模式不筛选书签，按 Enter 使用设置中选择的搜索引擎，在当前标签页打开结果；输入过程不发送关键词，不提供在线联想。书签模式实时筛选自定义名称、原标题、URL、域名和原文件夹路径，Enter 不提交网页搜索。切换模式保留文字，清空恢复全部。
+- 点击书签按设置在当前或新标签页打开（默认当前标签页）；Ctrl / Command 点击、中键点击仍由原生链接处理。新标签页不保留 opener。
 - 悬停或 Tab 聚焦 Item 出现编辑和置顶按钮，触屏上按钮始终可见。
 - 编辑仅改变显示名称；留空或点击“恢复原标题”删除该别名。无别名时原标题变化会立即反映。
 - 设置入口支持列数（自动或 1–12 列）、行间距（0–32px）、列间距（0–48px）、文字与图标的统一大小（12–28px），调整即时预览并保存在本机，可一键恢复默认。窄屏会自动减少实际列数，避免横向溢出。
+
+## 搜索与打开偏好
+
+设置中可选择默认搜索引擎：百度、Google，或“跟随 Chrome”（兼容旧版本的默认值）。百度使用 `https://www.baidu.com/s?wd=...`，Google 使用 `https://www.google.com/search?q=...`；中文和特殊符号均进行 URL 编码。输入时不请求搜索引擎，仅主动提交时导航。该设置只影响插件内搜索，不修改 Chrome 自身配置。
+
+“网站打开方式”提供当前标签页和新标签页，控制书签点击，默认当前标签页。搜索结果始终在当前标签页打开。原生 Ctrl/Command/Shift 点击与中键行为保留。两项偏好仅保存在本机，刷新后保留；恢复默认会一并恢复为“跟随 Chrome”和“当前标签页”。无需新增权限。
 
 ## 使用频率与置顶
 
@@ -55,9 +61,9 @@ npm run build
 
 网站小图标通过 Chrome 自带的 `/_favicon/` 接口读取，需要 `favicon` 权限和 Chrome 93+。不使用 Google S2 或其他远程图标服务，不会把书签 URL 发给第三方图标服务。无可用图标、加载失败或非 HTTP(S) 书签使用随扩展打包的通用图标。文字与图标严格使用相同的 CSS 像素尺寸；旧版本没有此设置时自动使用 16px。
 
-申请 `bookmarks`、`storage`、`favicon`、`search`，没有 `history`、`tabs` 或 `host_permissions`。通过 `chrome.search.query` 使用用户配置的默认搜索引擎，不修改引擎设置；书签读取使用 `chrome.bookmarks.getTree()` / `get()` 并监听 `onCreated`、`onChanged`、`onMoved`、`onRemoved`，不修改、重命名或删除原始书签。
+申请 `bookmarks`、`storage`、`favicon`、`search`，没有 `history`、`tabs` 或 `host_permissions`。选择“跟随 Chrome”时通过 `chrome.search.query` 使用浏览器默认搜索引擎；选择百度或 Google 时，明确提交后导航到所选引擎的搜索结果地址，不修改 Chrome 默认引擎；书签读取使用 `chrome.bookmarks.getTree()` / `get()` 并监听 `onCreated`、`onChanged`、`onMoved`、`onRemoved`，不修改、重命名或删除原始书签。
 
-布局偏好独立使用 `layout:columns`、`layout:rowGap`、`layout:columnGap`、`layout:itemSize` 保存；不会与 `name:` 别名键混淆。原始书签是唯一数据源，不复制到持久化存储。自定义名称存入 `chrome.storage.local`，每个书签单独保存为 `name:<bookmarkId>` → 名称，内存中再合并为 ID 到别名的映射。独立键避免多页面编辑不同书签时覆盖整个别名表。多个页面修改同一 ID 时以后一次写入为准。
+布局偏好独立使用 `layout:columns`、`layout:rowGap`、`layout:columnGap`、`layout:itemSize`、`layout:searchEngine`、`layout:openInNewTab` 保存；不会与 `name:` 别名键混淆。原始书签是唯一数据源，不复制到持久化存储。自定义名称存入 `chrome.storage.local`，每个书签单独保存为 `name:<bookmarkId>` → 名称，内存中再合并为 ID 到别名的映射。独立键避免多页面编辑不同书签时覆盖整个别名表。多个页面修改同一 ID 时以后一次写入为准。
 
 后台 service worker 在删除书签/整个目录时清理对应别名、使用统计和置顶记录，即使新标签页没有打开也会运行。页面加载时再次清理遗留记录。存储或读取失败会提示错误和重试，不报告虚假成功。其他扩展页面的 storage 变化也会触发刷新。
 
@@ -97,4 +103,4 @@ npm run test:e2e
 
 在受管理的云浏览器中，如果扩展参数被忽略或企业策略禁止书签编辑，`test:e2e` 可能无法启动其临时扩展/创建测试书签。不要修改系统企业策略。可运行 `npm run test:browser`：它对生产构建页面注入模拟 Chrome API，验证实际 Chromium 中的搜索、改名、重载持久化、对话框和响应式布局。此检查不能替代真实扩展 API 验证。
 
-本次云环境验证结果：79 项单元/集成测试通过；TypeScript 与 Vite 构建通过；生产页面浏览器测试通过。真实解压扩展测试因受管理 Chromium 未加载命令行指定的扩展而超时，未完成；环境还设置了 `EditBookmarksEnabled: false`。在个人 Chrome 中请按上述步骤加载 `dist/` 完成最终安装验收。
+本次云环境验证结果：85 项单元/集成测试通过；TypeScript 与 Vite 构建通过；生产页面浏览器测试通过。真实解压扩展测试因受管理 Chromium 未加载命令行指定的扩展而超时，未完成；环境还设置了 `EditBookmarksEnabled: false`。在个人 Chrome 中请按上述步骤加载 `dist/` 完成最终安装验收。

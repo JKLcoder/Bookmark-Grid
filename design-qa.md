@@ -74,3 +74,12 @@ Approved reference: `docs/superpowers/specs/2026-11-12-frequency-pins-search-des
 - Visual result: passed; no actionable P0/P1/P2 issues. Expected follow-up: verify native default search navigation and actual favicon cache behavior in personal Chrome.
 
 Final review regression fix: freeze an empty frequency snapshot after the first background read failure and defer actionable grid links until the first usage attempt settles. Both failure/recovery and pending-initial-read tests failed before the fix and pass afterward. This preserves the agreed stable within-page ranking under startup errors.
+
+## 1.4 incremental change: provider and opening preferences
+
+- Current captures: `docs/design/search-open-preferences-desktop.png` (1487 × 1058) and `docs/design/search-open-preferences-mobile.png` (390px viewport, full-page), both scale 1. Settings open, Google selected, new-tab bookmark mode selected. Inspected directly; dropdowns and footer remain accessible, with no horizontal overflow. Desktop capture waits until responsive grid tracks settle after viewport resize.
+- Added default-search-provider dropdown (Baidu, Google, follow Chrome) and website-opening dropdown (current/new tab). Browser-default/current-tab remain the migration defaults. Settings are local, survive reload and participate in restore defaults.
+- Explicit provider searches navigate the current tab to fixed HTTPS Baidu/Google endpoints with URLSearchParams encoding. Only bookmarks honor the new-tab preference, using native target `_blank` with `noopener noreferrer`; modifier and middle gestures remain native. No new permissions.
+- Production-page browser checks verify persisted preferences, actual new-tab creation with the original page retained and opener isolated, actual current-tab link navigation, and exact Google/Baidu destination URLs. All external destination responses are intercepted and fulfilled locally; this does not claim external service availability or real extension runtime verification.
+- 85 unit/integration tests pass, including defaults/malformed values, shared reset, native targets and provider URL encoding. Initial search submission waits for startup preferences to avoid using the wrong default during loading. TypeScript/Vite build and Chromium smoke pass. No unexpected requests or runtime errors.
+- Visual result: passed; no actionable P0/P1/P2 issues. Existing managed-Chromium real-extension limitation still applies.
