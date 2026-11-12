@@ -566,3 +566,31 @@ it("does not resurrect a successfully deleted bookmark when local cleanup fails"
   expect(screen.queryByRole("link", { name: "我的文档" })).toBeNull();
   expect(chrome.bookmarks.remove).toHaveBeenCalledTimes(1);
 });
+it("keeps site totals and adjacency when searching a subset", async () => {
+  const user = userEvent.setup();
+  items = [
+    { id: "a", title: "匹配 GitHub A", url: "https://github.com/a" },
+    { id: "b", title: "其他 GitHub B", url: "https://github.com/b" },
+    { id: "c", title: "匹配 Other", url: "https://other.test" },
+  ];
+  data["usage:a"] = { count: 1, lastOpened: 1, pinned: false };
+  data["usage:b"] = { count: 9, lastOpened: 1, pinned: false };
+  data["usage:c"] = { count: 5, lastOpened: 1, pinned: false };
+  render(<App />);
+  await waitFor(() =>
+    expect(screen.getAllByRole("link").map((e) => e.textContent)).toEqual([
+      "其他 GitHub B",
+      "匹配 GitHub A",
+      "匹配 Other",
+    ]),
+  );
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "搜索模式" }),
+    "bookmarks",
+  );
+  await user.type(screen.getByRole("searchbox"), "匹配");
+  expect(screen.getAllByRole("link").map((e) => e.textContent)).toEqual([
+    "匹配 GitHub A",
+    "匹配 Other",
+  ]);
+});

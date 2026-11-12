@@ -177,6 +177,37 @@ try{
  assert.equal(await mobile.locator('.item-name').evaluateAll(items=>items.filter(e=>e.scrollWidth>e.clientWidth).length),0);
  await mobile.getByRole('button',{name:'编辑 阿里云',exact:true}).waitFor({state:'visible'});
  await mobile.screenshot({path:'/tmp/bookmark-grid-touch-large.png',fullPage:true});await touch.close();
+ // Independent domain-grouping fixture keeps existing browser scenarios unchanged.
+ const groupedContext=await context.browser().newContext({viewport:{width:1487,height:1058}});
+ await groupedContext.addInitScript(fixture);
+ await groupedContext.addInitScript(()=>{
+  const items=[
+   {id:'g1',title:'匹配 GitHub 一',url:'http://www.github.com/a'},
+   {id:'o',title:'匹配 Other',url:'https://other.test/a'},
+   {id:'g2',title:'GitHub 二',url:'https://GITHUB.COM:8443/b'},
+   {id:'p',title:'置顶仓库',url:'https://github.com/p'},
+   {id:'w',title:'Wiki',url:'https://wiki.test/a'},
+  ];
+  chrome.bookmarks.getTree=async()=>[{id:'0',title:'',children:items}];
+  chrome.bookmarks.get=async id=>items.filter(item=>item.id===id);
+  void chrome.storage.local.set({
+   'usage:g1':{count:1,lastOpened:1,pinned:false},'usage:g2':{count:7,lastOpened:1,pinned:false},
+   'usage:o':{count:9,lastOpened:1,pinned:false},'usage:p':{count:20,lastOpened:1,pinned:true},
+   'usage:w':{count:2,lastOpened:1,pinned:false},
+  });
+ });
+ const groupedPage=await groupedContext.newPage();await groupedPage.goto(page.url());
+ await groupedPage.getByText('5 个书签',{exact:true}).waitFor();
+ const groupedOrder=['置顶仓库','GitHub 二','匹配 GitHub 一','匹配 Other','Wiki'];
+ await groupedPage.waitForFunction(()=>document.querySelectorAll('.bookmark-link')[1]?.textContent==='GitHub 二');
+ assert.deepEqual(await groupedPage.getByRole('link').allTextContents(),groupedOrder);
+ await groupedPage.getByRole('combobox',{name:'搜索模式'}).selectOption('bookmarks');
+ await groupedPage.getByRole('searchbox').fill('匹配');
+ assert.deepEqual(await groupedPage.getByRole('link').allTextContents(),['匹配 GitHub 一','匹配 Other']);
+ await groupedPage.getByRole('button',{name:'清空搜索'}).click();
+ assert.deepEqual(await groupedPage.getByRole('link').allTextContents(),groupedOrder);
+ await groupedPage.screenshot({path:'/tmp/bookmark-grid-site-grouping.png',fullPage:true});
+ await groupedContext.close();
  const appUrl=page.url();
  const googleUrl='https://www.google.com/search?q=%E4%B8%AD%E6%96%87+%26+C%2B%2B';
  const baiduUrl='https://www.baidu.com/s?wd=%E4%B8%AD%E6%96%87+%26+C%2B%2B';
@@ -242,5 +273,5 @@ try{
  const pageCount=context.pages().length;await page.getByRole('link',{name:'阿里云',exact:true}).click();
  await page.waitForURL('https://example-0.test/');assert.equal(context.pages().length,pageCount);
  assert.deepEqual(errors,[]);assert.deepEqual(external,[googleUrl,baiduUrl,'https://example-0.test/']);
- console.log('PASS: confirmed deletion, Escape/Cancel, retry, duplicate-URL preservation and cleanup; prototype UI verified: readable 28px columns, 32px targets, settings focus exit, persistent save errors/retry/undo and scoped resets; persisted provider/open preferences; intercepted real navigation to Google/Baidu; actual new/current-tab anchor behavior; original tab retained and opener isolated;  production page with mocked Chrome API: 36 bookmarks; default engine / bookmark modes, explicit engine payload, immediate pins, native auxclick counts, stable current ordering and updated order after reload; layout columns/gaps/shared icon-text sizes persist; 12px and 28px dimensions match; reset and responsive cap, duplicate-URL search, alias editing/reload, native modal Escape, desktop/mobile layouts, no unexpected external requests or runtime errors; provider navigation responses intercepted locally.');
+ console.log('PASS: site adjacency, aggregate frequency, pinned exception, normalized hosts and search stability; confirmed deletion, Escape/Cancel, retry, duplicate-URL preservation and cleanup; prototype UI verified: readable 28px columns, 32px targets, settings focus exit, persistent save errors/retry/undo and scoped resets; persisted provider/open preferences; intercepted real navigation to Google/Baidu; actual new/current-tab anchor behavior; original tab retained and opener isolated;  production page with mocked Chrome API: 36 bookmarks; default engine / bookmark modes, explicit engine payload, immediate pins, native auxclick counts, stable current ordering and updated order after reload; layout columns/gaps/shared icon-text sizes persist; 12px and 28px dimensions match; reset and responsive cap, duplicate-URL search, alias editing/reload, native modal Escape, desktop/mobile layouts, no unexpected external requests or runtime errors; provider navigation responses intercepted locally.');
 }finally{await context?.close();await new Promise(r=>server.close(r));await rm(profile,{recursive:true,force:true});}

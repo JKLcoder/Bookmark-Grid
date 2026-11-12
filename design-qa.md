@@ -106,3 +106,11 @@ Final review regression fix: freeze an empty frequency snapshot after the first 
 - API resolves the exact ID through bookmarks.get and rejects folders before bookmarks.remove. Existing background onRemoved listener serializes alias/usage/pin cleanup. UI removes the successful ID immediately before refresh so local cleanup/read errors cannot resurrect the link.
 - Added seven unit/integration regressions: API target/folder/error behavior; UI cancellation, duplicate preservation and cleanup, pending/retry, and successful deletion despite later cleanup failure. All 102 tests pass. Browser flow covers native Escape/Cancel, initial focus, failure/retry, duplicate URL preservation, cleanup and reload.
 - Production browser uses simulated Chrome bookmarks and actual serialized usage store. Updated real unpacked smoke to assert the selected ID disappears from Chrome while its duplicate remains; managed Chromium still cannot load this extension, so this native runtime check was not run here.
+
+## 1.7 website-adjacent sorting
+
+- Existing flat grid retained: pins first, unpinned same-host URLs adjacent. HTTP(S), ports, path, case and leading www do not split the site. Other subdomains remain separate, non-web/invalid URLs are per-ID.
+- Groups use summed frozen snapshot clicks, including pins; ties use recency then existing Chinese-friendly name order. Individual members retain frequency/recency/name ordering. Search filters the complete ranked list, preserving group totals and order.
+- Inspected `docs/design/site-grouping.png`: pinned GitHub bookmark followed by adjacent GitHub links, then other sites. No headers, extra cards, controls or layout changes; info line now explains same-site grouping.
+- Five new unit/integration cases cover aggregate adjacency, pinned contribution, unrelated hosts/non-web addresses, recency/name ties, and filtered search stability. 107 tests pass; production-page browser fixture independently verifies www/case/port normalization, pinned exception and search/clear ordering. Full existing deletion/layout/usage/browser regressions pass.
+- No new permissions, dependencies or storage migration. Actual Chrome extension loading remains unverified in the managed browser as previously documented.

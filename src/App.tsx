@@ -294,10 +294,9 @@ export default function App() {
       unsubscribe();
     };
   }, [adopt, generation]);
-  const visible = rankBookmarks(
-    searchBookmarks(bookmarks, mode === "bookmarks" ? query : ""),
-    snapshot,
-    usage,
+  const visible = searchBookmarks(
+    rankBookmarks(bookmarks, snapshot, usage),
+    mode === "bookmarks" ? query : "",
   );
   async function submitSearch() {
     if (loading || mode !== "engine" || !query.trim() || searching.current)
@@ -392,9 +391,9 @@ export default function App() {
           <div className="info-right">
             <span
               className="sort-copy"
-              title="置顶优先，然后按累计打开次数和最近使用时间排序。频率从启用后开始记录，在下次打开或刷新时更新。"
+              title="置顶优先，其余按网站聚合；网站按总打开次数排序，网站内按单条使用频率排序。频率在下次打开或刷新时更新。"
             >
-              置顶优先 · 使用频率
+              置顶优先 · 同站聚合
             </span>
             <span className="shortcut">
               <kbd>/</kbd>定位搜索
