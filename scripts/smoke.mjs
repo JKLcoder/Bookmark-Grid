@@ -32,7 +32,7 @@ try {
  page.on('pageerror',error=>errors.push(error.message));
  page.on('request',r=>{if(/^https?:/.test(r.url()))external.push(r.url());});
  await page.goto(url);
- await page.getByRole('link',{name:'React 文档 react.dev',exact:true}).waitFor();
+ await page.getByRole('link',{name:'React 文档',exact:true}).waitFor();
  assert.equal(await page.getByRole('link').count(),14);
  await page.getByRole('searchbox').fill('前端开发');
  assert.equal(await page.getByRole('link').count(),1);
@@ -40,12 +40,12 @@ try {
  await page.getByRole('button',{name:'编辑 React 文档',exact:true}).click();
  await page.getByRole('textbox',{name:'显示名称'}).fill('我的前端文档');
  await page.getByRole('button',{name:'保存名称',exact:true}).click();
- await page.getByRole('link',{name:'我的前端文档 react.dev',exact:true}).waitFor();
+ await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
  await page.reload();
- await page.getByRole('link',{name:'我的前端文档 react.dev',exact:true}).waitFor();
+ await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
  assert.equal(await worker.evaluate(async id=>(await chrome.bookmarks.get(id))[0].title,fixture.a.id),'React 文档');
  await worker.evaluate(async id=>chrome.bookmarks.update(id,{title:'更新原始标题'}),fixture.b.id);
- await page.getByRole('link',{name:'更新原始标题 react.dev',exact:true}).waitFor();
+ await page.getByRole('link',{name:'更新原始标题',exact:true}).waitFor();
  await page.getByRole('button',{name:'设置',exact:true}).click();
  await page.getByRole('dialog').waitFor();
  await page.keyboard.press('Escape');
