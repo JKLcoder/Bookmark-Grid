@@ -59,7 +59,7 @@ export default function App() {
    const current=++revision;
    try {const [data,savedLayout]=await Promise.all([loadBookmarks(),loadLayout()]);if(active&&current===revision){setBookmarks(data);if(!settingsOpen.current)setLayout(savedLayout);setError('');}
     try {const latest=await loadUsage();if(active&&current===revision){setUsage(latest);setNotice('');if(initialUsage.current===null){initialUsage.current=latest;setSnapshot(latest);}}}
-    catch(error){if(active&&current===revision)setNotice(`本地使用数据读取失败：${error instanceof Error?error.message:'请重试'}`);}
+    catch(error){if(active&&current===revision){if(initialUsage.current===null){initialUsage.current={};setSnapshot({});}setNotice(`本地使用数据读取失败：${error instanceof Error?error.message:'请重试'}`);}}
    }
    catch(error){if(active&&current===revision)setError(error instanceof Error?error.message:'读取书签失败，请重试。');}
    finally{if(active&&current===revision)setLoading(false);}
@@ -92,7 +92,7 @@ export default function App() {
    {notice&&<div role="alert" className="error-banner"><span>{notice}</span><button onClick={()=>refreshRef.current()}>重试</button></div>}
    {!loading&&!error&&bookmarks.length===0&&<div className="empty"><h3>还没有书签</h3><p>在 Chrome 中收藏一个网页，它就会出现在这里。</p><p>按 Ctrl / ⌘ + D 收藏当前网页。</p></div>}
    {!loading&&!error&&bookmarks.length>0&&visible.length===0&&<div className="empty"><h3>没有找到匹配的书签</h3><p>试试其他名称、域名或文件夹路径。</p><button onClick={()=>setQuery('')}>清空搜索</button></div>}
-   <BookmarkGrid bookmarks={visible} layout={layout} onEdit={setEditing} usage={usage} onOpen={opened} onPin={(id,pinned)=>void pin(id,pinned)}/>
+   <BookmarkGrid bookmarks={initialUsage.current===null?[]:visible} layout={layout} onEdit={setEditing} usage={usage} onOpen={opened} onPin={(id,pinned)=>void pin(id,pinned)}/>
    <footer>本地存储 · 不上传书签</footer>
   </section>
   {editing&&<Rename key={editing.id} bookmark={editing} onClose={()=>setEditing(null)} onSaved={()=>refreshRef.current()}/>}

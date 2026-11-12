@@ -97,4 +97,4 @@ npm run test:e2e
 
 在受管理的云浏览器中，如果扩展参数被忽略或企业策略禁止书签编辑，`test:e2e` 可能无法启动其临时扩展/创建测试书签。不要修改系统企业策略。可运行 `npm run test:browser`：它对生产构建页面注入模拟 Chrome API，验证实际 Chromium 中的搜索、改名、重载持久化、对话框和响应式布局。此检查不能替代真实扩展 API 验证。
 
-本次云环境验证结果：77 项单元/集成测试通过；TypeScript 与 Vite 构建通过；生产页面浏览器测试通过。真实解压扩展测试因受管理 Chromium 未加载命令行指定的扩展而超时，未完成；环境还设置了 `EditBookmarksEnabled: false`。在个人 Chrome 中请按上述步骤加载 `dist/` 完成最终安装验收。
+本次云环境验证结果：79 项单元/集成测试通过；TypeScript 与 Vite 构建通过；生产页面浏览器测试通过。真实解压扩展测试因受管理 Chromium 未加载命令行指定的扩展而超时，未完成；环境还设置了 `EditBookmarksEnabled: false`。在个人 Chrome 中请按上述步骤加载 `dist/` 完成最终安装验收。
