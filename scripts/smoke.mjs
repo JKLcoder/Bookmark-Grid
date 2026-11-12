@@ -34,6 +34,7 @@ try {
  await page.goto(url);
  await page.getByRole('link',{name:'React 文档',exact:true}).waitFor();
  assert.equal(await page.getByRole('link').count(),14);
+ await page.getByRole('combobox',{name:'搜索模式'}).selectOption('bookmarks');
  await page.getByRole('searchbox').fill('前端开发');
  assert.equal(await page.getByRole('link').count(),1);
  await page.getByRole('button',{name:'清空搜索'}).click();

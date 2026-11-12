@@ -24,17 +24,41 @@ try{
   const titles=['阿里云','百度','北京大学','哔哩哔哩','博客园','菜鸟教程','豆瓣','飞书','高德地图','即刻','京东','掘金','开发者社区','美团','少数派','淘宝','腾讯文档','网易云音乐','微信公众平台','React 文档','小红书','语雀','知乎','中国大学慕课','CodePen','Dribbble','Figma','GitHub','Linear','MDN Web Docs','Notion','npm','Stack Overflow','TypeScript','Vercel','Vite'];
   const urls=titles.map((_,i)=>i===19||i===29?'https://react.dev/':`https://example-${i}.test`);
   const bookmarks={getTree:async()=>[{id:'0',title:'',children:[{id:'folder',title:'前端开发',children:titles.map((title,i)=>({id:String(i),title,url:urls[i]}))}]}],onCreated:listeners(),onChanged:listeners(),onMoved:listeners(),onRemoved:listeners()};
+  bookmarks.get=async id=>{const i=Number(id);if(!Number.isInteger(i)||!titles[i])throw Error('missing');return [{id,title:titles[i],url:urls[i]}];};
   const onChanged=listeners();
   Object.defineProperty(globalThis,'chrome',{value:{bookmarks,storage:{local:{get:async()=>({...data}),set:async values=>{Object.assign(data,values);localStorage.setItem('test-names',JSON.stringify(data));onChanged.fire();},remove:async keys=>{for(const key of [keys].flat())delete data[key];localStorage.setItem('test-names',JSON.stringify(data));onChanged.fire();}},onChanged}},configurable:true});
+  let storePromise;
+  chrome.runtime={sendMessage:(message,callback)=>{
+   storePromise??=import(location.origin+'/usage-store.js').then(module=>module.createUsageStore(chrome));
+   storePromise.then(store=>message.type==='usage:load'?store.load():message.type==='usage:record'?store.record(message.id):store.setPinned(message.id,message.pinned)).then(data=>callback({ok:true,data}),error=>callback({ok:false,error:error.message}));
+  }};
+  chrome.search={query:(options,callback)=>{globalThis.__engineQueries??=[];globalThis.__engineQueries.push(options);callback();}};
  });
  const page=await context.newPage();const errors=[];const external=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url())&&!r.url().startsWith('http://127.0.0.1:'))external.push(r.url());});
  await page.goto(`http://127.0.0.1:${server.address().port}`);
  await page.getByRole('link',{name:'React 文档',exact:true}).waitFor();assert.equal(await page.getByRole('link').count(),36);
- await page.getByRole('searchbox').fill('react.dev');assert.equal(await page.getByRole('link').count(),2);
+ assert.equal(await page.getByRole('combobox',{name:'搜索模式'}).inputValue(),'engine');
+ await page.getByRole('searchbox').fill('react.dev');assert.equal(await page.getByRole('link').count(),36);
+ assert.equal(await page.evaluate(()=>globalThis.__engineQueries?.length||0),0);
+ await page.getByRole('searchbox').press('Enter');
+ await page.waitForFunction(()=>globalThis.__engineQueries?.length===1);
+ assert.deepEqual(await page.evaluate(()=>globalThis.__engineQueries[0]),{text:'react.dev',disposition:'CURRENT_TAB'});
+ await page.getByRole('combobox',{name:'搜索模式'}).selectOption('bookmarks');assert.equal(await page.getByRole('link').count(),2);
  await page.getByRole('button',{name:'清空搜索'}).click();
  await page.getByRole('button',{name:'编辑 React 文档',exact:true}).click();await page.getByRole('textbox',{name:'显示名称'}).fill('我的前端文档');await page.getByRole('button',{name:'保存名称',exact:true}).click();await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
  await page.reload();await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
+ assert.equal(await page.getByRole('combobox',{name:'搜索模式'}).inputValue(),'engine');
+ await page.getByRole('button',{name:'置顶 Vite',exact:true}).click();
+ await page.getByRole('button',{name:'取消置顶 Vite',exact:true}).waitFor();
+ assert.equal(await page.getByRole('link').first().innerText(),'Vite');
+ const previous=await page.getByRole('link').allTextContents();
+ // DOM-level native auxclick invokes the real React handler without opening an external tab in this fixture.
+ for(let i=0;i<3;i++)await page.getByRole('link',{name:'GitHub',exact:true}).dispatchEvent('auxclick',{button:1});
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-names')||'{}')['usage:27']?.count===3);
+ assert.deepEqual(await page.getByRole('link').allTextContents(),previous);
+ await page.reload();await page.getByRole('button',{name:'取消置顶 Vite',exact:true}).waitFor();
+ await page.waitForFunction(()=>document.querySelectorAll('.bookmark-item a')[1]?.textContent==='GitHub');
  await page.getByRole('button',{name:'设置',exact:true}).click();await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');assert.equal(await page.getByRole('dialog').count(),0);
  await page.getByRole('button',{name:'设置',exact:true}).click();
  await page.getByRole('combobox',{name:'列数'}).selectOption('8');
@@ -60,6 +84,11 @@ try{
  await page.getByRole('button',{name:'关闭设置'}).click();
  await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
  await page.screenshot({path:'/tmp/bookmark-grid-desktop.png',fullPage:true});
+ await page.getByRole('combobox',{name:'搜索模式'}).selectOption('bookmarks');
+ await page.getByRole('searchbox').fill('react.dev');
+ await page.screenshot({path:'/tmp/bookmark-grid-bookmark-search.png',fullPage:true});
+ await page.getByRole('button',{name:'清空搜索'}).click();
+ await page.getByRole('combobox',{name:'搜索模式'}).selectOption('engine');
  await page.getByRole('button',{name:'设置',exact:true}).click();
  await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
  await page.screenshot({path:'/tmp/bookmark-grid-settings.png',fullPage:true});
@@ -71,5 +100,5 @@ try{
  assert.equal(await page.locator('.item-domain').count(),0);
  assert.equal(await page.locator('.bookmark-item a').first().evaluate(el=>getComputedStyle(el).height),'42px');
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
- console.log('PASS: production page with mocked Chrome API: 36 bookmarks; layout columns/gaps/shared icon-text sizes persist; 12px and 28px dimensions match; reset and responsive cap, duplicate-URL search, alias editing/reload, native modal Escape, desktop/mobile layouts, no external requests or runtime errors.');
+ console.log('PASS: production page with mocked Chrome API: 36 bookmarks; default engine / bookmark modes, explicit engine payload, immediate pins, native auxclick counts, stable current ordering and updated order after reload; layout columns/gaps/shared icon-text sizes persist; 12px and 28px dimensions match; reset and responsive cap, duplicate-URL search, alias editing/reload, native modal Escape, desktop/mobile layouts, no external requests or runtime errors.');
 }finally{await context?.close();await new Promise(r=>server.close(r));await rm(profile,{recursive:true,force:true});}

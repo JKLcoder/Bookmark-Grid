@@ -59,3 +59,16 @@ User-directed changes supersede the title-only/no-icons portion of the earlier v
 - 49 tests pass. TypeScript/Vite build and production-page Chromium check pass. Actual favicon appearance through Chrome's extension runtime remains a personal-Chrome acceptance check; this managed environment does not support the real extension smoke as previously documented.
 - Added `favicon` permission and Chrome 93 minimum version. No host permissions, third-party favicon endpoints or bookmark mutations.
 - Current incremental visual result: passed; no actionable P0/P1/P2 findings.
+
+## 1.3 incremental change: frequency, pins and dual search
+
+Approved reference: `docs/superpowers/specs/2026-11-12-frequency-pins-search-design.md`; retain the existing dark visual system and implement the approved new dropdown/pin interactions.
+
+- Desktop engine mode: `docs/design/engine-mode.png` at 1487 × 1058, scale 1, one pinned bookmark and one hovered bookmark.
+- Bookmark mode: `docs/design/bookmark-mode.png`, same viewport, matching URL search results.
+- Mobile engine mode: `docs/design/dual-search-mobile.png`, 390px CSS width, full-page capture. Dropdown/input fit without horizontal overflow; names truncate instead of hiding controls.
+- Inspected browser captures directly. Typography/tokens and grid spacing remain consistent with the existing compact direction. Standard pin icons are bundled Radix icons. The persistent filled pin remains visible; hover/focus reveals edit and unfilled pin actions.
+- Production-page Chromium fixture uses the real `usage-store.js` behind simulated Chrome messaging and a simulated Chrome search API; no claim of actual default-provider navigation is made. Browser assertions verify default mode, explicit search request payload, no typing-time submission, bookmark filtering, immediate pins, three middle-button activations, stable current order and updated order after reload.
+- Existing layout/font/icon-size and persistence checks still pass, including 12px and 28px sizing; no page runtime errors or external fixture requests.
+- Full unit/integration suite: 77 passing at release preparation; TypeScript/Vite build and browser smoke pass. Real unpacked extension smoke remains unavailable in this managed instance.
+- Visual result: passed; no actionable P0/P1/P2 issues. Expected follow-up: verify native default search navigation and actual favicon cache behavior in personal Chrome.
