@@ -169,7 +169,7 @@ try{
  assert.equal(await page.getByRole('button',{name:'编辑 我的前端文档'}).evaluate(e=>e.getBoundingClientRect().width),32);
  await page.getByRole('button',{name:'设置',exact:true}).click();await page.getByRole('button',{name:'恢复布局默认'}).click();await page.getByRole('button',{name:'关闭设置'}).click();
  const touch=await context.browser().newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});await touch.addInitScript(fixture);
- const mobile=await touch.newPage();await mobile.goto(page.url());await mobile.getByRole('link',{name:'React 文档',exact:true}).waitFor();
+ const mobile=await touch.newPage();await mobile.goto(page.url());await mobile.getByRole('link').first().waitFor();
  assert.equal(await mobile.evaluate(()=>matchMedia('(hover:none)').matches),true);
  await mobile.getByRole('button',{name:'设置',exact:true}).click();await mobile.getByRole('slider',{name:'文字与图标大小'}).focus();await mobile.keyboard.press('End');await mobile.getByRole('button',{name:'关闭设置'}).click();
  await mobile.waitForFunction(()=>getComputedStyle(document.querySelector('.bookmark-grid')).gridTemplateColumns.split(' ').length===1);

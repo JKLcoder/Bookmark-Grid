@@ -83,7 +83,7 @@ it("renders native anchors and real count", async () => {
   expect(link.hasAttribute("target")).toBe(false);
   expect(screen.getByText("2 个书签")).toBeTruthy();
 });
-it("searches and clears without pagination", async () => {
+it("searches and clears small result sets", async () => {
   const user = userEvent.setup();
   render(<App />);
   await screen.findByRole("link", { name: /开发文档/ });

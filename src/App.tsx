@@ -412,21 +412,8 @@ export default function App() {
             <button onClick={() => refreshRef.current()}>重试</button>
           </div>
         )}
-        {!loading && !error && bookmarks.length === 0 && (
-          <div className="empty">
-            <h3>还没有书签</h3>
-            <p>在 Chrome 中收藏一个网页，它就会出现在这里。</p>
-            <p>按 Ctrl / ⌘ + D 收藏当前网页。</p>
-          </div>
-        )}
-        {!loading && !error && bookmarks.length > 0 && visible.length === 0 && (
-          <div className="empty">
-            <h3>没有找到匹配的书签</h3>
-            <p>试试其他名称、域名或文件夹路径。</p>
-            <button onClick={() => setQuery("")}>清空搜索</button>
-          </div>
-        )}
         <BookmarkGrid
+          pageKey={mode === "bookmarks" ? query : ""}
           bookmarks={initialUsage.current === null ? [] : visible}
           layout={layout}
           onEdit={setEditing}
@@ -434,7 +421,22 @@ export default function App() {
           onOpen={opened}
           onPin={(id, pinned) => void pin(id, pinned)}
           onColumnsChange={setActualColumns}
-        />
+        >
+          {!loading && !error && bookmarks.length === 0 && (
+            <div className="empty">
+              <h3>还没有书签</h3>
+              <p>在 Chrome 中收藏一个网页，它就会出现在这里。</p>
+              <p>按 Ctrl / ⌘ + D 收藏当前网页。</p>
+            </div>
+          )}
+          {!loading && !error && bookmarks.length > 0 && visible.length === 0 && (
+            <div className="empty">
+              <h3>没有找到匹配的书签</h3>
+              <p>试试其他名称、域名或文件夹路径。</p>
+              <button onClick={() => setQuery("")}>清空搜索</button>
+            </div>
+          )}
+        </BookmarkGrid>
         <footer className="page-footer">本地存储 · 不上传书签</footer>
       </section>
       {editing && (
