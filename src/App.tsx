@@ -1,3 +1,5 @@
+import BackgroundLayer from "./BackgroundLayer";
+import { useBackground } from "./useBackground";
 import {
   useCallback,
   useEffect,
@@ -225,6 +227,7 @@ function Rename({
   );
 }
 export default function App() {
+  const background = useBackground();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -374,7 +377,8 @@ export default function App() {
     }
   }
   return (
-    <main>
+    <main className={background.active ? "has-background" : undefined}>
+      <BackgroundLayer background={background} />
       <header className="app-header">
         <div className="brand">
           <h1>Bookmark Grid</h1>
@@ -521,6 +525,7 @@ export default function App() {
       )}
       {settings && (
         <LayoutSettings
+          background={background}
           layout={layout}
           actualColumns={actualColumns}
           status={status}

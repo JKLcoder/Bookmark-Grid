@@ -50,8 +50,8 @@ try{
  a.offline=false;await a.page.evaluate(()=>window.fireSyncAlarm());await a.page.getByText('已交给 Chrome 同步',{exact:true}).waitFor();
  await b.page.waitForFunction(()=>JSON.parse(localStorage.getItem('device-data'))['layout:rowGap']===12);
  assert.equal(await local(a.page,'layout:columnGap'),20);assert.equal((await local(a.page,'usage:a1')).count,9);
- await b.page.locator('input[type="file"]').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{"format":"bad"}')});await b.page.getByRole('alert').filter({hasText:'设置备份'}).waitFor();
- await b.page.locator('input[type="file"]').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});await b.page.getByText('已导入到本机，跨设备进度请查看同步状态。',{exact:true}).waitFor();await flush(b.page);
+ await b.page.getByRole('region',{name:'跨设备同步'}).locator('input[type="file"]').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{"format":"bad"}')});await b.page.getByRole('alert').filter({hasText:'设置备份'}).waitFor();
+ await b.page.getByRole('region',{name:'跨设备同步'}).locator('input[type="file"]').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});await b.page.getByText('已导入到本机，跨设备进度请查看同步状态。',{exact:true}).waitFor();await flush(b.page);
  await a.page.waitForFunction(()=>JSON.parse(localStorage.getItem('device-data'))['layout:rowGap']===7);
  await b.page.setViewportSize({width:390,height:844});await b.page.getByRole('button',{name:'导出设置'}).scrollIntoViewIfNeeded();
  assert.equal(await b.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);

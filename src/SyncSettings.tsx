@@ -14,7 +14,7 @@ export default function SyncSettings() {
   return()=>{active=false;chrome.storage.onChanged.removeListener(changed);};
  },[]);
  async function run(work:()=>Promise<void>){setBusy(true);setMessage('');setError('');try{await work();}catch(e){setError(e instanceof Error?e.message:'操作失败，请重试。');}finally{setBusy(false);}}
- async function exportSettings(){await run(async()=>{const data=await syncRequest({type:'sync:export'});const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const anchor=document.createElement('a');anchor.href=url;anchor.download='bookmark-grid-settings.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setMessage('已生成设置备份，不包含书签树或使用次数。');});}
+ async function exportSettings(){await run(async()=>{const data=await syncRequest({type:'sync:export'});const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const anchor=document.createElement('a');anchor.href=url;anchor.download='bookmark-grid-settings.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setMessage('已生成设置备份，不包含书签树、使用次数或背景图片。');});}
  async function importSettings(selected:File){await run(async()=>{if(selected.size>2*1024*1024)throw Error('设置文件过大，请选择本插件导出的 JSON。');const data=JSON.parse(await selected.text());await syncRequest({type:'sync:import',data});setMessage('已导入到本机，跨设备进度请查看同步状态。');});}
  const label=!status?'正在读取同步状态…':status.phase==='accepted'?'已交给 Chrome 同步':status.phase==='pending'?'已保存本机，等待同步':status.phase==='unavailable'?'已保存本机，Chrome 同步不可用':'已保存本机，同步待重试';
  return <section className="settings-section" aria-labelledby="sync-section-title">

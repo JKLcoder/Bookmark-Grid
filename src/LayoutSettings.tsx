@@ -1,3 +1,5 @@
+import BackgroundSettings from "./BackgroundSettings";
+import type { BackgroundController } from "./useBackground";
 import SyncSettings from "./SyncSettings";
 import { useEffect, useRef } from "react";
 import { Cross2Icon } from "@radix-ui/react-icons";
@@ -5,6 +7,7 @@ import { DEFAULT_LAYOUT, type Layout } from "./layout";
 import { SaveBadge } from "./PreferenceFeedback";
 import type { SaveStatus } from "./usePreferences";
 interface Props {
+  background: BackgroundController;
   layout: Layout;
   actualColumns: number;
   status: SaveStatus;
@@ -12,6 +15,7 @@ interface Props {
   onClose: (restoreFocus?: boolean) => void;
 }
 export default function LayoutSettings({
+  background,
   layout,
   actualColumns,
   status,
@@ -215,6 +219,7 @@ export default function LayoutSettings({
         </div>
         <p className="helper">此项仅影响书签。搜索结果仍在当前标签页打开。</p>
       </section>
+      <BackgroundSettings background={background} />
       <SyncSettings />
       <div className="settings-footer">
         <span>设置自动保存到本机</span>

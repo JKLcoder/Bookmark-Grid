@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Bookmark Grid",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "一个轻量、私密的扁平化书签新标签页。",
   "permissions": [
     "bookmarks",
@@ -18,7 +18,7 @@
     "type": "module"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; img-src 'self' data:"
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; img-src 'self' data: blob:"
   },
   "minimum_chrome_version": "108",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoXdL1zwsPiHmufSXr+UrQILKLzE9A3YwqsdBvKqwbaxSxn20S5mUc9WKqry93b+awTypYyXdCN8QctIW0EwnEE9jyOs0CalDMkVXhJm7OnYGfs1bFEo3ryVPzVexsxplX4Loynr65vFhiUpZVBcL2SDgzW+qR1RUsQnfPzcQbU8fXakDSAD9VXwCo7i3VqBBBxjqAKH6ba1MUv5mU/lb7KzECTY3RaXLU/23ARSwq7oHmm1I4Bw2TDZiEon2/7npSOIH/FwXDYJ1QB/BmflJKdwJ+wsmjlWZcF2JOIMPFSwVOE7ScwElW5cbRGjy9q+JZ29kLRMAyWVuIy1akqq1jQIDAQAB"
