@@ -51,3 +51,18 @@ it('recomputes complete rows and columns after viewport resize', () => {
   act(()=>window.dispatchEvent(new Event('resize')));
   expect(screen.getAllByRole('link')).toHaveLength(9);
 });
+it('reveals and focuses a requested bookmark without preventing later manual paging', () => {
+  const view=render(<BookmarkGrid {...props}/>);
+  view.rerender(<BookmarkGrid {...props} focusRequest={{id:'12',control:'edit',sequence:1}}/>);
+  expect(screen.getByRole('button',{name:'编辑 书签12'})).toBe(document.activeElement);
+  fireEvent.click(screen.getByRole('button',{name:'上一页'}));
+  expect(screen.getAllByRole('link')[0].textContent).toBe('书签6');
+  view.rerender(<BookmarkGrid {...props} focusRequest={{id:'0',control:'pin',sequence:2}}/>);
+  expect(screen.getByRole('button',{name:'置顶 书签0'})).toBe(document.activeElement);
+});
+it('focuses a neighboring link or search when the requested bookmark has been deleted', () => {
+  const view=render(<><input aria-label="搜索书签" id="search"/><BookmarkGrid {...props} focusRequest={{id:'deleted',control:'edit',sequence:1}}/></>);
+  expect(screen.getAllByRole('link')[0]).toBe(document.activeElement);
+  view.rerender(<><input aria-label="搜索书签" id="search"/><BookmarkGrid {...props} bookmarks={[]} focusRequest={{id:'deleted',control:'edit',sequence:2}}/></>);
+  expect(screen.getByRole('textbox',{name:'搜索书签'})).toBe(document.activeElement);
+});

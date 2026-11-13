@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:e2e": "node scripts/smoke.mjs",
     "test:browser": "node scripts/browser.mjs",
-    "test:pagination": "node scripts/pagination.mjs"
+    "test:pagination": "node scripts/pagination.mjs",
+    "test:interaction": "node scripts/interaction-smoke.mjs"
   },
   "dependencies": {
     "@radix-ui/react-icons": "^1.3.2",

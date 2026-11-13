@@ -15,6 +15,11 @@ import Favicon from "./Favicon";
 import { displayName, type Bookmark } from "./bookmarks";
 import { resolveColumns, type Layout } from "./layout";
 import type { UsageMap } from "./usage";
+export type BookmarkFocusRequest = {
+  id: string;
+  control: "edit" | "pin";
+  sequence: number;
+};
 interface Props {
   bookmarks: Bookmark[];
   layout: Layout;
@@ -23,6 +28,7 @@ interface Props {
   onOpen: (id: string) => void;
   onPin: (id: string, pinned: boolean) => void;
   pageKey?: string;
+  focusRequest?: BookmarkFocusRequest | null;
   children?: ReactNode;
   onColumnsChange?: (columns: number) => void;
 }
@@ -35,10 +41,12 @@ export default function BookmarkGrid({
   onPin,
   onColumnsChange,
   pageKey = "",
+  focusRequest,
   children,
 }: Props) {
   const ref = useRef<HTMLUListElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
+  const completedFocus = useRef(0);
   const [position, setPosition] = useState({ key: "", page: 0 });
   const [geometry, setGeometry] = useState(() => ({
     height: 0,
@@ -100,11 +108,30 @@ export default function BookmarkGrid({
   // A search or capacity change starts at the beginning; refreshed data only clamps.
   const key = JSON.stringify([pageKey, pageSize]);
   const page = position.key === key ? Math.min(position.page, pageCount - 1) : 0;
-  useEffect(() => {
-    setPosition((previous) =>
-      previous.key === key && previous.page === page ? previous : { key, page },
+  if (position.key !== key || position.page !== page) {
+    setPosition({ key, page });
+  }
+  useLayoutEffect(() => {
+    if (!focusRequest || completedFocus.current === focusRequest.sequence) return;
+    const index = bookmarks.findIndex((bookmark) => bookmark.id === focusRequest.id);
+    const targetPage = index < 0 ? page : Math.floor(index / pageSize);
+    if (targetPage !== page) {
+      setPosition({ key, page: targetPage });
+      return;
+    }
+    const item = Array.from(ref.current?.children ?? []).find(
+      (element) => (element as HTMLElement).dataset.bookmarkId === focusRequest.id,
     );
-  }, [key, page]);
+    const control = item?.querySelector<HTMLElement>(
+      focusRequest.control === "edit" ? ".edit-button" : ".pin-button",
+    );
+    const fallback = ref.current?.querySelector<HTMLElement>(".bookmark-link")
+      ?? document.getElementById("search");
+    completedFocus.current = focusRequest.sequence;
+    // Focusing the link first reveals controls hidden until :focus-within.
+    if (control) item?.querySelector<HTMLElement>(".bookmark-link")?.focus({ preventScroll: true });
+    (control ?? fallback)?.focus({ preventScroll: true });
+  }, [focusRequest, bookmarks, page, pageSize, key]);
   return (
     <div className="bookmark-pages">
       <div className="bookmark-viewport" ref={viewport}>
@@ -127,6 +154,7 @@ export default function BookmarkGrid({
             return (
               <li
                 key={bookmark.id}
+                data-bookmark-id={bookmark.id}
                 className={`bookmark-item${pinned ? " is-pinned" : ""}`}
               >
                 <a

@@ -1,14 +1,16 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { Cross2Icon, GearIcon } from "@radix-ui/react-icons";
 import SearchBar, { type SearchMode } from "./SearchBar";
 import { searchWithEngine, ENGINE_NAMES } from "./engine-search";
-import BookmarkGrid from "./BookmarkGrid";
+import BookmarkGrid, { type BookmarkFocusRequest } from "./BookmarkGrid";
 import LayoutSettings from "./LayoutSettings";
 import { loadLayout } from "./layout";
 import { loadUsage, recordOpen, setPinned, type UsageMap } from "./usage";
@@ -23,16 +25,19 @@ function Modal({
   onClose,
   children,
   busy = false,
+  initialFocus,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   busy?: boolean;
+  initialFocus?: RefObject<HTMLElement | null>;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     ref.current?.showModal();
-  }, []);
+    initialFocus?.current?.focus();
+  }, [initialFocus]);
   return (
     <dialog
       ref={ref}
@@ -70,9 +75,6 @@ function DeleteConfirmation({
   const [error, setError] = useState("");
   const pending = useRef(false);
   const cancelButton = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    cancelButton.current?.focus();
-  }, []);
   async function remove() {
     if (pending.current) return;
     pending.current = true;
@@ -88,7 +90,12 @@ function DeleteConfirmation({
     }
   }
   return (
-    <Modal title="确认删除书签" onClose={onClose} busy={busy}>
+    <Modal
+      title="确认删除书签"
+      onClose={onClose}
+      busy={busy}
+      initialFocus={cancelButton}
+    >
       <p>此操作会删除 Chrome 书签管理器中的原始书签，无法在本插件内撤销。</p>
       <p className="delete-bookmark-name">{displayName(bookmark)}</p>
       <p className="delete-bookmark-url">{bookmark.url}</p>
@@ -128,10 +135,11 @@ function Rename({
 }: {
   bookmark: Bookmark;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (name: string) => void;
   onDeleted: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(bookmark.customName ?? bookmark.title);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -140,7 +148,7 @@ function Rename({
     setError("");
     try {
       await saveName(bookmark.id, value);
-      onSaved();
+      onSaved(value.trim());
       onClose();
     } catch (error) {
       setError(error instanceof Error ? error.message : "保存失败，请重试。");
@@ -159,7 +167,12 @@ function Rename({
       />
     );
   return (
-    <Modal title="编辑显示名称" onClose={onClose} busy={saving}>
+    <Modal
+      title="编辑显示名称"
+      onClose={onClose}
+      busy={saving}
+      initialFocus={nameInput}
+    >
       <p className="muted">
         保存名称只修改此页的显示名称，不更改 Chrome 原始标题。
       </p>
@@ -172,6 +185,7 @@ function Rename({
         <label htmlFor="display-name">显示名称</label>
         <input
           id="display-name"
+          ref={nameInput}
           value={name}
           onChange={(event) => setName(event.target.value)}
           autoFocus
@@ -229,6 +243,22 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<UsageMap>({});
   const initialUsage = useRef<UsageMap | null>(null);
   const [notice, setNotice] = useState("");
+  const [focusRequest, setFocusRequest] = useState<BookmarkFocusRequest | null>(null);
+  const [pinFeedback, setPinFeedback] = useState<{
+    id: string;
+    name: string;
+    pinned: boolean;
+    restoreFocus: boolean;
+  } | null>(null);
+  const viewPinButton = useRef<HTMLButtonElement>(null);
+  function focusBookmark(id: string, control: BookmarkFocusRequest["control"]) {
+    setFocusRequest((previous) => ({ id, control, sequence: (previous?.sequence ?? 0) + 1 }));
+  }
+  useLayoutEffect(() => {
+    if (pinFeedback?.restoreFocus && document.activeElement === document.body) {
+      viewPinButton.current?.focus({ preventScroll: true });
+    }
+  }, [pinFeedback]);
   const closeSettings = useCallback((restoreFocus = true) => {
     setSettings(false);
     if (restoreFocus) settingsTrigger.current?.focus();
@@ -323,6 +353,9 @@ export default function App() {
     );
   }
   async function pin(id: string, pinned: boolean) {
+    const restoreFocus = document.activeElement?.classList.contains("pin-button") ?? false;
+    const bookmark = bookmarks.find((bookmark) => bookmark.id === id);
+    setPinFeedback(null);
     try {
       await setPinned(id, pinned);
       setUsage((previous) => ({
@@ -333,6 +366,7 @@ export default function App() {
           pinned,
         },
       }));
+      if (bookmark) setPinFeedback({ id, name: displayName(bookmark), pinned, restoreFocus });
     } catch (error) {
       setNotice(
         `置顶保存失败：${error instanceof Error ? error.message : "请重试"}`,
@@ -369,10 +403,12 @@ export default function App() {
           query={query}
           onModeChange={(value) => {
             setMode(value);
+            setPinFeedback(null);
             setSearchError("");
           }}
           onQueryChange={(value) => {
             setQuery(value);
+            setPinFeedback(null);
             setSearchError("");
           }}
           onSubmit={() => void submitSearch()}
@@ -389,15 +425,34 @@ export default function App() {
                 : `${bookmarks.length} 个书签`}
           </span>
           <div className="info-right">
-            <span
-              className="sort-copy"
-              title="置顶优先，其余按网站聚合；网站按总打开次数排序，网站内按单条使用频率排序。频率在下次打开或刷新时更新。"
-            >
-              置顶优先 · 同站聚合
-            </span>
-            <span className="shortcut">
-              <kbd>/</kbd>定位搜索
-            </span>
+            {pinFeedback ? (
+              <div className="pin-feedback">
+                <span role="status" aria-live="polite">
+                  <span className="sr-only">{pinFeedback.name}：</span>
+                  {pinFeedback.pinned ? "已置顶" : "已取消置顶"}
+                </span>
+                <button
+                  ref={viewPinButton}
+                  type="button"
+                  aria-label={pinFeedback.pinned ? "查看已置顶书签" : "查看已取消置顶书签"}
+                  onClick={() => focusBookmark(pinFeedback.id, "pin")}
+                >
+                  查看
+                </button>
+              </div>
+            ) : (
+              <>
+                <span
+                  className="sort-copy"
+                  title="置顶优先，其余按网站聚合；网站按总打开次数排序，网站内按单条使用频率排序。频率在下次打开或刷新时更新。"
+                >
+                  置顶优先 · 同站聚合
+                </span>
+                <span className="shortcut">
+                  <kbd>/</kbd>定位搜索
+                </span>
+              </>
+            )}
           </div>
         </div>
         {error && (
@@ -413,6 +468,7 @@ export default function App() {
           </div>
         )}
         <BookmarkGrid
+          focusRequest={focusRequest}
           pageKey={mode === "bookmarks" ? query : ""}
           bookmarks={initialUsage.current === null ? [] : visible}
           layout={layout}
@@ -437,14 +493,24 @@ export default function App() {
             </div>
           )}
         </BookmarkGrid>
+        <PreferenceFeedback status={status} onRetry={retry} onUndo={undo} />
         <footer className="page-footer">本地存储 · 不上传书签</footer>
       </section>
       {editing && (
         <Rename
           key={editing.id}
           bookmark={editing}
-          onClose={() => setEditing(null)}
-          onSaved={() => refreshRef.current()}
+          onClose={() => {
+            setEditing(null);
+            focusBookmark(editing.id, "edit");
+          }}
+          onSaved={(name) => {
+            // Apply the acknowledged name before restoring focus to its sorted page.
+            setBookmarks((previous) => previous.map((bookmark) =>
+              bookmark.id === editing.id ? { ...bookmark, customName: name || undefined } : bookmark,
+            ));
+            refreshRef.current();
+          }}
           onDeleted={() => {
             setBookmarks((previous) =>
               previous.filter((bookmark) => bookmark.id !== editing.id),
@@ -465,7 +531,6 @@ export default function App() {
           onClose={closeSettings}
         />
       )}
-      <PreferenceFeedback status={status} onRetry={retry} onUndo={undo} />
     </main>
   );
 }

@@ -242,7 +242,7 @@ select option {
   justify-content: space-between;
   gap: 12px;
   margin: 12px 0 10px;
-  min-height: 18px;
+  min-height: 28px;
   font-size: 12px;
   color: var(--muted);
 }
@@ -524,11 +524,13 @@ select option {
   width: 13px;
 }
 .toast {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
   z-index: 30;
-  width: min(410px, calc(100vw - 32px));
+  width: 100%;
   padding: 14px 16px;
   border: 1px solid #687b6f;
   border-radius: 8px;
@@ -550,7 +552,9 @@ select option {
   width: 16px;
   height: 16px;
 }
+.toast-copy { flex: 1; min-width: 0; }
 .toast p {
+  overflow-wrap: anywhere;
   font-size: 12px;
   color: #b6c6bb;
   margin: 6px 0 0;
@@ -564,8 +568,9 @@ select option {
 }
 .toast-actions {
   display: flex;
+  flex-shrink: 0;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 0;
   flex-wrap: wrap;
 }
 .toast-actions button {
@@ -713,8 +718,10 @@ dialog input {
     white-space: nowrap;
   }
   .toast {
-    right: 16px;
-    bottom: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
   }
   .bookmark-link {
     padding: 8px;
@@ -856,3 +863,6 @@ main {
 }
 .bookmark-viewport > .empty h3 { margin: 0 0 8px; }
 .bookmark-viewport > .empty p { margin: 8px 0; }
+
+.pin-feedback { display: flex; align-items: center; gap: 8px; }
+.pin-feedback button { min-height: 24px; padding: 1px 8px; font-size: 12px; }

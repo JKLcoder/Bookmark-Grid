@@ -50,11 +50,13 @@ export function PreferenceFeedback({
   if (status.phase !== "error") return null;
   return (
     <div className="toast error-toast" role="alert">
-      <div className="toast-title">
-        <ExclamationTriangleIcon aria-hidden="true" />
-        更改尚未保存
+      <div className="toast-copy">
+        <div className="toast-title">
+          <ExclamationTriangleIcon aria-hidden="true" />
+          更改尚未保存
+        </div>
+        <p>{status.error}。当前仍在预览新设置。</p>
       </div>
-      <p>{status.error}。当前仍在预览新设置。</p>
       <div className="toast-actions">
         <button className="primary" type="button" onClick={onRetry}>
           重试保存
