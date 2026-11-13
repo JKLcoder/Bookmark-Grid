@@ -1,3 +1,4 @@
+import { syncRequest } from "./sync-client";
 import { flattenBookmarks, pruneNames, type Bookmark } from "./bookmarks";
 const prefix = "name:";
 function extension() {
@@ -23,11 +24,8 @@ export async function loadBookmarks(): Promise<Bookmark[]> {
   return bookmarks.map((b) => ({ ...b, customName: valid[b.id] }));
 }
 export async function saveName(id: string, name: string): Promise<void> {
-  const api = extension();
-  const value = name.trim();
-  // Per-ID keys avoid read/modify/write races between different new-tab pages.
-  if (value) await api.storage.local.set({ [prefix + id]: value });
-  else await api.storage.local.remove(prefix + id);
+  extension();
+  await syncRequest({type:"sync:name",id,name:name.trim()});
 }
 export function subscribe(listener: () => void): () => void {
   const api = extension();

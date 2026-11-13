@@ -101,7 +101,10 @@ export function usePreferences() {
       // A read started before a local edit/ack must not overwrite the preview.
       if (token !== generation.current) return;
       const safe = normalizeLayout({ ...next });
-      acknowledged.current = { ...safe };
+      const baseline = { ...safe };
+      for (const key of dirty.current.keys())
+        Object.assign(baseline, { [key]: acknowledged.current[key] });
+      acknowledged.current = baseline;
       const preview = { ...safe };
       for (const [key, edit] of dirty.current)
         Object.assign(preview, { [key]: edit.value });

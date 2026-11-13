@@ -1,3 +1,4 @@
+import {attachRuntime} from "./helpers/runtime";
 // @vitest-environment jsdom
 import { it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, waitFor, cleanup } from "@testing-library/react";
@@ -9,10 +10,12 @@ beforeEach(() => {
   vi.stubGlobal("chrome", {
     storage: {
       local: {
+        get: async()=>({...data}),
         set: vi.fn(async (patch: object) => Object.assign(data, patch)),
       },
     },
   });
+  attachRuntime(chrome);
 });
 afterEach(() => {
   cleanup();
@@ -115,10 +118,15 @@ it("saves grouped resets as a patch without changing unrelated preferences", asy
   await waitFor(() => expect(result.current.status.phase).toBe("saved"));
   expect(result.current.layout.searchEngine).toBe("google");
   expect(result.current.layout.openInNewTab).toBe(true);
-  expect(Object.keys(data).sort()).toEqual([
+  expect(Object.keys(data).filter(key=>!key.startsWith("sync:")).sort()).toEqual([
     "layout:columnGap",
     "layout:columns",
     "layout:itemSize",
     "layout:rowGap",
   ]);
+});
+it('does not turn an unacknowledged mirrored preview into the undo baseline',async()=>{
+ const {result}=renderHook(usePreferences);act(()=>result.current.adopt(DEFAULT_LAYOUT,result.current.generation.current));
+ (chrome.storage.local.set as any).mockRejectedValueOnce(Error('quota'));act(()=>result.current.change({columns:8}));await waitFor(()=>expect(result.current.status.phase).toBe('error'));
+ act(()=>result.current.adopt({...DEFAULT_LAYOUT,columns:8},result.current.generation.current));act(()=>result.current.undo());await waitFor(()=>expect(result.current.status.phase).toBe('saved'));expect(result.current.layout.columns).toBe(6);
 });

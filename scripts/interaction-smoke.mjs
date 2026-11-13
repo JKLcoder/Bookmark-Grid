@@ -20,8 +20,8 @@ const fixture=()=>{
   const items=Array.from({length:160},(_,i)=>({id:String(i),title:`书签${String(i).padStart(3,'0')}`,url:`https://example.test/${i}`}));
   const api={bookmarks:{getTree:async()=>{if(window.__delayRefresh)await new Promise(r=>setTimeout(r,200));return [{id:'0',title:'',children:items}];},get:async id=>{const item=items.find(x=>x.id===id);if(!item)throw Error('missing');return [item];},onCreated:event(),onChanged:event(),onMoved:event(),onRemoved:event()},storage:{local:{get:async()=>({...data}),set:async values=>{if(window.__failPreferences&&Object.keys(values).some(k=>k.startsWith('layout:')))throw Error('测试：保存失败');Object.assign(data,values);changed.fire();},remove:async keys=>{for(const key of [keys].flat())delete data[key];changed.fire();}},onChanged:changed}};
   let store;
-  api.runtime={sendMessage:(message,callback)=>{store??=import(location.origin+'/usage-store.js').then(m=>m.createUsageStore(api));store.then(s=>message.type==='usage:load'?s.load():message.type==='usage:record'?s.record(message.id):window.__failPin?Promise.reject(Error('测试：置顶保存失败')):s.setPinned(message.id,message.pinned)).then(data=>callback({ok:true,data}),error=>callback({ok:false,error:error.message}));}};
-  api.bookmarks.remove=async id=>{const index=items.findIndex(x=>x.id===id);if(index<0)throw Error('missing');items.splice(index,1);api.bookmarks.onRemoved.fire();(await store).remove([id]);};
+  api.runtime={sendMessage:(message,callback)=>{store??=import(location.origin+'/service.js').then(m=>m.createService(api));store.then(service=>message.type==='usage:pin'&&window.__failPin?Promise.reject(Error('测试：置顶保存失败')):service.request(message)).then(data=>callback({ok:true,data}),error=>callback({ok:false,error:error.message}));}};
+  api.bookmarks.remove=async id=>{const index=items.findIndex(x=>x.id===id);if(index<0)throw Error('missing');items.splice(index,1);api.bookmarks.onRemoved.fire();(await store).usage.remove([id]);};
   Object.defineProperty(window,'chrome',{value:api,configurable:true});
 };
 const failures=[];

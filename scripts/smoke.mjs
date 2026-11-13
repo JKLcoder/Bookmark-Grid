@@ -25,10 +25,13 @@ try {
   const nested=await chrome.bookmarks.create({parentId:folder.id,title:'前端开发'});
   const a=await chrome.bookmarks.create({parentId:nested.id,title:'React 文档',url:'https://react.dev/'});
   const b=await chrome.bookmarks.create({parentId:folder.id,title:'重复网址',url:'https://react.dev/'});
-  for (const [title,url] of [['阿里云','https://aliyun.com'],['百度','https://baidu.com'],['中文社区','https://example.com'],['TypeScript Handbook','https://typescriptlang.org/docs'],['GitHub','https://github.com'],['MDN Web Docs','https://developer.mozilla.org'],['Vite','https://vite.dev'],['设计灵感与非常非常长的书签标题用来验证文字溢出时不会破坏网格布局','https://design.example.com'],['知乎','https://zhihu.com'],['Figma','https://figma.com'],['Linear','https://linear.app'],['Notion','https://notion.so']]) await chrome.bookmarks.create({parentId:folder.id,title,url});
-  return {folder,a,b};
+  let liveId;
+  for (const [title,url] of [['阿里云','https://aliyun.com'],['百度','https://baidu.com'],['中文社区','https://example.com'],['TypeScript Handbook','https://typescriptlang.org/docs'],['GitHub','https://github.com'],['MDN Web Docs','https://developer.mozilla.org'],['Vite','https://vite.dev'],['设计灵感与非常非常长的书签标题用来验证文字溢出时不会破坏网格布局','https://design.example.com'],['知乎','https://zhihu.com'],['Figma','https://figma.com'],['Linear','https://linear.app'],['Notion','https://notion.so']]) {const created=await chrome.bookmarks.create({parentId:folder.id,title,url});if(title==='阿里云')liveId=created.id;}
+  return {folder,a,b,liveId};
  });
  const page = await context.newPage(); const errors=[]; const external=[];
+ const named=page.locator(`[data-bookmark-id="${fixture.a.id}"] .bookmark-link`);
+ const duplicate=page.locator(`[data-bookmark-id="${fixture.b.id}"]`);
  page.on('pageerror',error=>errors.push(error.message));
  page.on('request',r=>{if(/^https?:/.test(r.url()))external.push(r.url());});
  await page.goto(url);
@@ -42,11 +45,11 @@ try {
  await page.getByRole('button',{name:'编辑 React 文档',exact:true}).click();
  await page.getByRole('textbox',{name:'显示名称'}).fill('我的前端文档');
  await page.getByRole('button',{name:'保存名称',exact:true}).click();
- await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
+ await named.waitFor();
  await page.reload();
- await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
+ await named.waitFor();
  assert.equal(await worker.evaluate(async id=>(await chrome.bookmarks.get(id))[0].title,fixture.a.id),'React 文档');
- await worker.evaluate(async id=>chrome.bookmarks.update(id,{title:'更新原始标题'}),fixture.b.id);
+ await worker.evaluate(async id=>chrome.bookmarks.update(id,{title:'更新原始标题'}),fixture.liveId);
  await page.getByRole('link',{name:'更新原始标题',exact:true}).waitFor();
  await page.getByRole('button',{name:'设置',exact:true}).click();
  await page.getByRole('dialog').waitFor();
@@ -59,14 +62,14 @@ try {
  assert.deepEqual(external,[],'Extension page must not make external requests');
  assert.deepEqual(errors,[],'No browser runtime errors');
  await page.setViewportSize({width:1440,height:1000});
- await page.getByRole('link',{name:'更新原始标题',exact:true}).hover();
- await page.getByRole('button',{name:'编辑 更新原始标题',exact:true}).click();
+ await duplicate.locator('.bookmark-link').hover();
+ await duplicate.locator('.edit-button').click();
  await page.getByRole('button',{name:'删除书签',exact:true}).click();
  await page.getByRole('button',{name:'确认删除',exact:true}).click();
  await page.getByRole('dialog').waitFor({state:'detached'});
  await page.getByText('13 个书签',{exact:true}).waitFor();
  assert.equal(await worker.evaluate(async id=>{try{await chrome.bookmarks.get(id);return false;}catch{return true;}},fixture.b.id),true);
- assert.equal(await page.getByRole('link',{name:'我的前端文档',exact:true}).count(),1);
+ assert.equal(await named.count(),1);
  await page.close();
  await worker.evaluate(async id=>chrome.bookmarks.removeTree(id),fixture.folder.id);
  // A real storage read checks cleanup even while all extension pages are closed.

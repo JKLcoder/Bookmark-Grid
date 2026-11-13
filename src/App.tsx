@@ -174,7 +174,7 @@ function Rename({
       initialFocus={nameInput}
     >
       <p className="muted">
-        保存名称只修改此页的显示名称，不更改 Chrome 原始标题。
+        同一完整网址的书签共享显示名称，不更改 Chrome 原始标题。
       </p>
       <form
         onSubmit={(event) => {
@@ -360,11 +360,11 @@ export default function App() {
       await setPinned(id, pinned);
       setUsage((previous) => ({
         ...previous,
-        [id]: {
-          count: previous[id]?.count ?? 0,
-          lastOpened: previous[id]?.lastOpened ?? 0,
+        ...Object.fromEntries(bookmarks.filter((item) => item.url === bookmark?.url).map((item) => [item.id, {
+          count: previous[item.id]?.count ?? 0,
+          lastOpened: previous[item.id]?.lastOpened ?? 0,
           pinned,
-        },
+        }])),
       }));
       if (bookmark) setPinFeedback({ id, name: displayName(bookmark), pinned, restoreFocus });
     } catch (error) {
@@ -494,7 +494,7 @@ export default function App() {
           )}
         </BookmarkGrid>
         <PreferenceFeedback status={status} onRetry={retry} onUndo={undo} />
-        <footer className="page-footer">本地存储 · 不上传书签</footer>
+        <footer className="page-footer">本地计数 · 设置可跨设备同步</footer>
       </section>
       {editing && (
         <Rename
@@ -507,7 +507,7 @@ export default function App() {
           onSaved={(name) => {
             // Apply the acknowledged name before restoring focus to its sorted page.
             setBookmarks((previous) => previous.map((bookmark) =>
-              bookmark.id === editing.id ? { ...bookmark, customName: name || undefined } : bookmark,
+              bookmark.url === editing.url ? { ...bookmark, customName: name || undefined } : bookmark,
             ));
             refreshRef.current();
           }}

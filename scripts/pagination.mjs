@@ -22,9 +22,9 @@ try {
     const data={};const changed=event();
     const items=Array.from({length:257},(_,i)=>({id:String(i),title:`书签${String(i).padStart(3,'0')}`,url:`https://example.test/${i}`}));
     Object.defineProperty(window,'chrome',{value:{
-      bookmarks:{getTree:async()=>[{id:'0',title:'',children:items}],onCreated:event(),onChanged:event(),onMoved:event(),onRemoved:event()},
+      bookmarks:{get:async id=>[{id,url:`https://example.test/${id}`}],getTree:async()=>[{id:'0',title:'',children:items}],onCreated:event(),onChanged:event(),onMoved:event(),onRemoved:event()},
       storage:{local:{get:async()=>({...data}),set:async values=>{Object.assign(data,values);changed.fire();},remove:async keys=>{for(const key of [keys].flat())delete data[key];}},onChanged:changed},
-      runtime:{sendMessage:(message,callback)=>callback({ok:true,data:{}})}
+      runtime:{sendMessage:(message,callback)=>{window.__service??=import(location.origin+'/service.js').then(m=>m.createService(chrome));window.__service.then(s=>s.request(message)).then(data=>callback({ok:true,data}),error=>callback({ok:false,error:error.message}));}}
     },configurable:true});
   });
   const page=await context.newPage();const errors=[];

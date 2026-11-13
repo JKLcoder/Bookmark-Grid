@@ -1,3 +1,4 @@
+import SyncSettings from "./SyncSettings";
 import { useEffect, useRef } from "react";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { DEFAULT_LAYOUT, type Layout } from "./layout";
@@ -32,7 +33,7 @@ export default function LayoutSettings({
       ) {
         const controls = [
           ...ref.current.querySelectorAll<HTMLElement>(
-            "button:not([disabled]),select:not([disabled]),input:not([disabled])",
+            "button:not([disabled]),select:not([disabled]),input:not([disabled]):not([hidden])",
           ),
         ];
         if (
@@ -214,6 +215,7 @@ export default function LayoutSettings({
         </div>
         <p className="helper">此项仅影响书签。搜索结果仍在当前标签页打开。</p>
       </section>
+      <SyncSettings />
       <div className="settings-footer">
         <span>设置自动保存到本机</span>
         <SaveBadge status={status} />

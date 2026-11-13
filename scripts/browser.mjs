@@ -31,16 +31,16 @@ try{
   Object.defineProperty(globalThis,'chrome',{value:{bookmarks,storage:{local:{get:async()=>({...data}),set:async values=>{if(globalThis.__failNextPreferenceSave&&Object.keys(values).some(key=>key.startsWith('layout:'))){globalThis.__failNextPreferenceSave=false;await new Promise(resolve=>setTimeout(resolve,80));throw Error('Fixture save failure');}Object.assign(data,values);localStorage.setItem('test-names',JSON.stringify(data));onChanged.fire();},remove:async keys=>{for(const key of [keys].flat())delete data[key];localStorage.setItem('test-names',JSON.stringify(data));onChanged.fire();}},onChanged}},configurable:true});
   let storePromise;
   chrome.runtime={sendMessage:(message,callback)=>{
-   storePromise??=import(location.origin+'/usage-store.js').then(module=>module.createUsageStore(chrome));
-   storePromise.then(store=>message.type==='usage:load'?store.load():message.type==='usage:record'?store.record(message.id):store.setPinned(message.id,message.pinned)).then(data=>callback({ok:true,data}),error=>callback({ok:false,error:error.message}));
+   storePromise??=import(location.origin+'/service.js').then(module=>module.createService(chrome));
+   storePromise.then(service=>service.request(message)).then(data=>callback({ok:true,data}),error=>callback({ok:false,error:error.message}));
   }};
   bookmarks.remove=async id=>{
    if(globalThis.__failNextDelete){globalThis.__failNextDelete=false;throw Error('Fixture delete failure');}
    await bookmarks.get(id);removed.add(id);localStorage.setItem('test-removed',JSON.stringify([...removed]));
    bookmarks.onRemoved.fire();
    // Match the production worker's onRemoved cleanup using its actual serialized store.
-   storePromise??=import(location.origin+'/usage-store.js').then(module=>module.createUsageStore(chrome));
-   void storePromise.then(store=>store.remove([id]));
+   storePromise??=import(location.origin+'/service.js').then(module=>module.createService(chrome));
+   void storePromise.then(service=>service.usage.remove([id]));
   };
   chrome.search={query:(options,callback)=>{globalThis.__engineQueries??=[];globalThis.__engineQueries.push(options);callback();}};
  };
@@ -58,8 +58,8 @@ try{
  await page.getByRole('combobox',{name:'搜索模式'}).selectOption('bookmarks');assert.equal(await page.getByRole('link').count(),2);
  await page.getByRole('button',{name:'清空搜索'}).click();
  await page.getByRole('link',{name:'React 文档',exact:true}).hover();
- await page.getByRole('button',{name:'编辑 React 文档',exact:true}).click();await page.getByRole('textbox',{name:'显示名称'}).fill('我的前端文档');await page.getByRole('button',{name:'保存名称',exact:true}).click();await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
- await page.reload();await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
+ await page.getByRole('button',{name:'编辑 React 文档',exact:true}).click();await page.getByRole('textbox',{name:'显示名称'}).fill('我的前端文档');await page.getByRole('button',{name:'保存名称',exact:true}).click();await page.locator('[data-bookmark-id="19"] .bookmark-link').waitFor();
+ await page.reload();await page.locator('[data-bookmark-id="19"] .bookmark-link').waitFor();
  assert.equal(await page.getByRole('combobox',{name:'搜索模式'}).inputValue(),'engine');
  await page.getByRole('link',{name:'Vite',exact:true}).hover();
  await page.getByRole('button',{name:'置顶 Vite',exact:true}).click();
@@ -82,7 +82,7 @@ try{
  await page.getByRole('slider',{name:'文字与图标大小'}).focus();await page.keyboard.press('ArrowRight');
  await page.waitForFunction(()=>getComputedStyle(document.querySelector('.bookmark-item a')).fontSize==='17px');
  await page.getByRole('button',{name:'关闭设置'}).click();
- await page.reload();await page.getByRole('link',{name:'我的前端文档',exact:true}).waitFor();
+ await page.reload();await page.locator('[data-bookmark-id="19"] .bookmark-link').waitFor();
  await page.getByRole('button',{name:'设置',exact:true}).click();
  assert.equal(await page.getByRole('combobox',{name:'期望列数'}).inputValue(),'8');
  assert.equal(await page.getByRole('slider',{name:'行间距'}).inputValue(),'5');
@@ -108,7 +108,7 @@ try{
  await page.getByRole('button',{name:'恢复布局默认'}).click();
  await page.waitForFunction(()=>document.querySelector('#columns').value==='6'&&document.querySelector('#rowGap').value==='4'&&document.querySelector('#columnGap').value==='12');
  await page.getByRole('button',{name:'关闭设置'}).click();
- await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
+ await page.locator('[data-bookmark-id="19"] .bookmark-link').hover();
  await page.screenshot({path:'/tmp/bookmark-grid-desktop.png',fullPage:true});
  await page.getByRole('combobox',{name:'搜索模式'}).selectOption('bookmarks');
  await page.getByRole('searchbox').fill('react.dev');
@@ -116,7 +116,7 @@ try{
  await page.getByRole('button',{name:'清空搜索'}).click();
  await page.getByRole('combobox',{name:'搜索模式'}).selectOption('engine');
  await page.getByRole('button',{name:'设置',exact:true}).click();
- await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
+ await page.locator('[data-bookmark-id="19"] .bookmark-link').hover();
  await page.screenshot({path:'/tmp/bookmark-grid-settings.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
@@ -128,7 +128,7 @@ try{
  assert.deepEqual(external,[],'Typing and local interactions must not make external requests');
  await page.setViewportSize({width:1487,height:1058});
  await page.getByRole('button',{name:'设置',exact:true}).click();
- await page.getByRole('combobox',{name:'书签打开方式'}).focus();await page.keyboard.press('Tab');
+ await page.getByRole('button',{name:'导入设置',exact:true}).focus();await page.keyboard.press('Tab');
  assert.equal(await page.getByRole('dialog',{name:'页面设置'}).count(),0);
  assert.equal(await page.getByRole('button',{name:'设置',exact:true}).evaluate(e=>document.activeElement===e),true);
  await page.keyboard.press('/');assert.equal(await page.getByRole('searchbox').evaluate(e=>document.activeElement===e),true);
@@ -165,8 +165,8 @@ try{
  const large=await page.evaluate(()=>({clipped:[...document.querySelectorAll('.item-name')].filter(e=>e.scrollWidth>e.clientWidth).map(e=>e.textContent),top:document.querySelector('.bookmark-grid').getBoundingClientRect().top}));
  assert.deepEqual(large.clipped,[]);assert.ok(large.top<160);
  await page.screenshot({path:'/tmp/bookmark-grid-large-readable.png',fullPage:true});
- await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
- assert.equal(await page.getByRole('button',{name:'编辑 我的前端文档'}).evaluate(e=>e.getBoundingClientRect().width),32);
+ await page.locator('[data-bookmark-id="19"] .bookmark-link').hover();
+ assert.equal(await page.locator('[data-bookmark-id="19"] .edit-button').evaluate(e=>e.getBoundingClientRect().width),32);
  await page.getByRole('button',{name:'设置',exact:true}).click();await page.getByRole('button',{name:'恢复布局默认'}).click();await page.getByRole('button',{name:'关闭设置'}).click();
  const touch=await context.browser().newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});await touch.addInitScript(fixture);
  const mobile=await touch.newPage();await mobile.goto(page.url());await mobile.getByRole('link').first().waitFor();
@@ -245,17 +245,17 @@ try{
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-names')||'{}')['layout:openInNewTab']===false);
  await page.getByRole('button',{name:'关闭设置'}).click();
  // Delete one of the duplicate-URL bookmarks, with Cancel, Escape and retry coverage.
- await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
- await page.getByRole('button',{name:'置顶 我的前端文档',exact:true}).click();
- await page.getByRole('link',{name:'我的前端文档',exact:true}).dispatchEvent('auxclick',{button:1});
+ await page.locator('[data-bookmark-id="19"] .bookmark-link').hover();
+ await page.locator('[data-bookmark-id="19"] .pin-button').click();
+ await page.locator('[data-bookmark-id="19"] .bookmark-link').dispatchEvent('auxclick',{button:1});
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-names')||'{}')['usage:19']?.count===1);
- await page.getByRole('link',{name:'我的前端文档',exact:true}).hover();
- await page.getByRole('button',{name:'编辑 我的前端文档',exact:true}).click();
+ await page.locator('[data-bookmark-id="19"] .bookmark-link').hover();
+ await page.locator('[data-bookmark-id="19"] .edit-button').click();
  await page.getByRole('button',{name:'删除书签',exact:true}).click();
  await page.getByRole('dialog',{name:'确认删除书签'}).waitFor();
  assert.equal(await page.getByRole('button',{name:'取消删除'}).evaluate(e=>e===document.activeElement),true);
  await page.keyboard.press('Escape');await page.getByRole('dialog',{name:'编辑显示名称'}).waitFor();
- assert.equal(await page.getByRole('link',{name:'我的前端文档',exact:true}).count(),1);
+ assert.equal(await page.locator('[data-bookmark-id="19"] .bookmark-link').count(),1);
  await page.getByRole('button',{name:'删除书签',exact:true}).click();
  await page.getByRole('button',{name:'取消删除'}).click();
  await page.getByRole('button',{name:'删除书签',exact:true}).click();
@@ -266,8 +266,8 @@ try{
  await page.getByRole('button',{name:'确认删除',exact:true}).click();
  await page.getByRole('dialog').waitFor({state:'detached'});
  await page.getByText('35 个书签',{exact:true}).waitFor();
- assert.equal(await page.getByRole('link',{name:'我的前端文档',exact:true}).count(),0);
- assert.equal(await page.getByRole('link',{name:'MDN Web Docs',exact:true}).count(),1);
+ assert.equal(await page.locator('[data-bookmark-id="19"] .bookmark-link').count(),0);
+ assert.equal(await page.locator('[data-bookmark-id="29"] .bookmark-link').innerText(),'我的前端文档');
  await page.waitForFunction(()=>{const data=JSON.parse(localStorage.getItem('test-names')||'{}');return !data['name:19']&&!data['usage:19'];});
  await page.reload();await page.getByText('35 个书签',{exact:true}).waitFor();
  const pageCount=context.pages().length;await page.getByRole('link',{name:'阿里云',exact:true}).click();

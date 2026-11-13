@@ -1,3 +1,4 @@
+import { attachRuntime } from "./helpers/runtime";
 import { beforeEach, it, expect, vi } from "vitest";
 import { loadBookmarks, saveName, subscribe, removeBookmark } from "../src/api";
 function event() {
@@ -40,6 +41,8 @@ beforeEach(() => {
       onChanged: event(),
     },
   };
+  api.bookmarks.get=async (id:string)=>[{id,url:`https://${id}.test`}];
+  attachRuntime(api);
   vi.stubGlobal("chrome", api);
 });
 it("loads real API tree with local aliases and cleans stale names only", async () => {
@@ -55,10 +58,11 @@ it("loads real API tree with local aliases and cleans stale names only", async (
   expect(store).toEqual({ "name:a": "别名", unrelated: 42 });
 });
 it("saves trimmed aliases independently without changing bookmarks", async () => {
+  api.bookmarks.getTree.mockResolvedValue([{id:"a",url:"https://a.test"},{id:"b",url:"https://b.test"}]);
   await Promise.all([saveName("a", " A "), saveName("b", "B")]);
   expect(store["name:a"]).toBe("A");
   expect(store["name:b"]).toBe("B");
-  expect(api.bookmarks.getTree).not.toHaveBeenCalled();
+  expect(api.bookmarks.update).toBeUndefined();
 });
 it("removes alias when reset", async () => {
   await saveName("a", "  ");

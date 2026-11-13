@@ -1,3 +1,4 @@
+import {createUsageStore} from "../public/usage-store.js";
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, beforeEach, it, expect, vi } from "vitest";
@@ -10,7 +11,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "../src/App";
-import { createUsageStore } from "../public/usage-store.js";
+import { attachRuntime } from "./helpers/runtime";
 let items: any[];
 let data: Record<string, any>;
 let events: Array<Set<() => void>>;
@@ -50,21 +51,7 @@ beforeEach(() => {
     if (!node) throw Error("missing");
     return [node];
   };
-  const store = createUsageStore(api);
-  api.runtime = {
-    sendMessage: (message: any, callback: any) => {
-      const task =
-        message.type === "usage:load"
-          ? store.load()
-          : message.type === "usage:record"
-            ? store.record(message.id)
-            : store.setPinned(message.id, message.pinned);
-      task.then(
-        (value: any) => callback({ ok: true, data: value }),
-        (error: Error) => callback({ ok: false, error: error.message }),
-      );
-    },
-  };
+  attachRuntime(api);
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute("open", "");
   };
@@ -150,7 +137,7 @@ it("shows storage errors without claiming success", async () => {
   await user.type(screen.getByRole("textbox", { name: "显示名称" }), "别名");
   await user.click(screen.getByRole("button", { name: "保存名称" }));
   await waitFor(() =>
-    expect(screen.getByRole("alert").textContent).toContain("空间不足"),
+    expect(screen.getAllByRole("alert").some(element=>element.textContent?.includes("空间不足"))).toBe(true),
   );
   expect(screen.getByRole("dialog")).toBeTruthy();
 });
@@ -219,7 +206,7 @@ it("keeps unsaved preview during bookmark refresh and displays persistence failu
   );
   events[1].forEach((f) => f());
   await waitFor(() =>
-    expect(screen.getByRole("alert").textContent).toContain("空间不足"),
+    expect(screen.getAllByRole("alert").some(element=>element.textContent?.includes("空间不足"))).toBe(true),
   );
   expect(
     (screen.getByRole("combobox", { name: "期望列数" }) as HTMLSelectElement)
@@ -460,7 +447,7 @@ it("closes settings when keyboard focus leaves and offers scoped resets", async 
       }) as HTMLSelectElement
     ).value,
   ).toBe("google");
-  screen.getByRole("combobox", { name: "书签打开方式" }).focus();
+  screen.getByRole("button", { name: "导入设置" }).focus();
   await user.tab();
   expect(screen.queryByRole("dialog", { name: "页面设置" })).toBeNull();
   expect(document.activeElement).toBe(

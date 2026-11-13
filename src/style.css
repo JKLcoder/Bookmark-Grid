@@ -866,3 +866,7 @@ main {
 
 .pin-feedback { display: flex; align-items: center; gap: 8px; }
 .pin-feedback button { min-height: 24px; padding: 1px 8px; font-size: 12px; }
+
+.sync-state { color: var(--accent); font-size: 12px; margin: 8px 0; }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.sync-actions button { font-size: 12px; padding: 5px 8px; }

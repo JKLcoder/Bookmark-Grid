@@ -1,3 +1,4 @@
+import { syncRequest } from "./sync-client";
 export type SearchEngine = "browser" | "baidu" | "google";
 export type Layout = {
   columns: number | "auto";
@@ -87,7 +88,7 @@ export async function saveLayoutPatch(patch: Partial<Layout>): Promise<void> {
     (key) => ["layout:" + key, safe[key]],
   );
   if (entries.length)
-    await chrome.storage.local.set(Object.fromEntries(entries));
+    await syncRequest({type:"sync:layout",patch:Object.fromEntries(entries.map(([key,value])=>[String(key).slice(7),value]))});
 }
 export async function saveLayoutField<K extends keyof Layout>(
   field: K,
